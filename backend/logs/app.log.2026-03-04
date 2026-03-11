@@ -1,0 +1,362 @@
+2026-03-04 18:50:50 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:50:50 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — PRAGMA main.table_info("job")
+2026-03-04 18:50:50 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [raw sql] ()
+2026-03-04 18:50:50 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — PRAGMA main.table_info("userprofile")
+2026-03-04 18:50:50 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [raw sql] ()
+2026-03-04 18:50:50 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — PRAGMA main.table_info("resumeversion")
+2026-03-04 18:50:50 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [raw sql] ()
+2026-03-04 18:50:50 [INFO    ] sqlalchemy.engine.Engine (base.py:2716) — COMMIT
+2026-03-04 18:50:52 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:50:52 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:50:52 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [generated in 0.00031s] ()
+2026-03-04 18:50:52 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:50:55 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:50:55 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:50:55 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 3.017s ago] ()
+2026-03-04 18:50:55 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:50:58 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:50:58 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:50:58 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 6.03s ago] ()
+2026-03-04 18:50:58 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:51:01 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:51:01 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:51:01 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 9.042s ago] ()
+2026-03-04 18:51:01 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:51:04 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:51:04 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:51:04 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 12.05s ago] ()
+2026-03-04 18:51:04 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:51:07 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:51:07 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:51:07 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 15.06s ago] ()
+2026-03-04 18:51:07 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:51:10 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:51:10 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:51:10 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 18.07s ago] ()
+2026-03-04 18:51:10 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:51:13 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:51:13 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:51:13 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 21.08s ago] ()
+2026-03-04 18:51:13 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:51:16 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:51:16 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:51:16 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 24.09s ago] ()
+2026-03-04 18:51:16 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:51:19 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:51:19 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:51:19 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 27.1s ago] ()
+2026-03-04 18:51:19 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:51:22 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:51:22 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:51:22 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 30.11s ago] ()
+2026-03-04 18:51:22 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:51:25 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:51:25 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:51:25 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 33.12s ago] ()
+2026-03-04 18:51:25 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:51:27 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:51:27 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:51:27 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 35.2s ago] ()
+2026-03-04 18:51:27 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:51:27 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:51:27 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job ORDER BY job.created_at DESC
+2026-03-04 18:51:27 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [generated in 0.00022s] ()
+2026-03-04 18:51:27 [INFO    ] sqlalchemy.engine.Engine (base.py:2716) — COMMIT
+2026-03-04 18:51:27 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:51:27 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job ORDER BY job.created_at DESC
+2026-03-04 18:51:27 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 0.004589s ago] ()
+2026-03-04 18:51:27 [INFO    ] sqlalchemy.engine.Engine (base.py:2716) — COMMIT
+2026-03-04 18:51:27 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:51:27 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:51:27 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 35.23s ago] ()
+2026-03-04 18:51:27 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:51:27 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:51:27 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:51:27 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 35.24s ago] ()
+2026-03-04 18:51:27 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:51:29 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:51:29 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id AS job_id, job.company_name AS job_company_name, job.job_title AS job_job_title, job.job_description AS job_job_description, job.match_score AS job_match_score, job.match_reason AS job_match_reason, job.tailored_match_score AS job_tailored_match_score, job.tailored_match_reason AS job_tailored_match_reason, job.status AS job_status, job.sub_status AS job_sub_status, job.job_url AS job_job_url, job.location AS job_location, job.salary AS job_salary, job.tailored_resume_path AS job_tailored_resume_path, job.tailored_bullets AS job_tailored_bullets, job.logs AS job_logs, job.analytics AS job_analytics, job.created_at AS job_created_at, job.composite_key AS job_composite_key, job.external_job_id AS job_external_job_id 
+FROM job 
+WHERE job.id = ?
+2026-03-04 18:51:29 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [generated in 0.00030s] (3,)
+2026-03-04 18:51:29 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:51:31 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:51:31 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id AS job_id, job.company_name AS job_company_name, job.job_title AS job_job_title, job.job_description AS job_job_description, job.match_score AS job_match_score, job.match_reason AS job_match_reason, job.tailored_match_score AS job_tailored_match_score, job.tailored_match_reason AS job_tailored_match_reason, job.status AS job_status, job.sub_status AS job_sub_status, job.job_url AS job_job_url, job.location AS job_location, job.salary AS job_salary, job.tailored_resume_path AS job_tailored_resume_path, job.tailored_bullets AS job_tailored_bullets, job.logs AS job_logs, job.analytics AS job_analytics, job.created_at AS job_created_at, job.composite_key AS job_composite_key, job.external_job_id AS job_external_job_id 
+FROM job 
+WHERE job.id = ?
+2026-03-04 18:51:31 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 2.012s ago] (3,)
+2026-03-04 18:51:31 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:51:31 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:51:31 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:51:31 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 39.4s ago] ()
+2026-03-04 18:51:31 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:51:34 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:51:34 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:51:34 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 42.43s ago] ()
+2026-03-04 18:51:34 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:51:34 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:51:34 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id AS job_id, job.company_name AS job_company_name, job.job_title AS job_job_title, job.job_description AS job_job_description, job.match_score AS job_match_score, job.match_reason AS job_match_reason, job.tailored_match_score AS job_tailored_match_score, job.tailored_match_reason AS job_tailored_match_reason, job.status AS job_status, job.sub_status AS job_sub_status, job.job_url AS job_job_url, job.location AS job_location, job.salary AS job_salary, job.tailored_resume_path AS job_tailored_resume_path, job.tailored_bullets AS job_tailored_bullets, job.logs AS job_logs, job.analytics AS job_analytics, job.created_at AS job_created_at, job.composite_key AS job_composite_key, job.external_job_id AS job_external_job_id 
+FROM job 
+WHERE job.id = ?
+2026-03-04 18:51:34 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 5.919s ago] (3,)
+2026-03-04 18:51:34 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT userprofile.id, userprofile.full_name, userprofile.current_title, userprofile.years_of_experience, userprofile.skills, userprofile.skill_whitelist, userprofile.resume_path, userprofile.linkedin_url, userprofile.preferred_work_mode, userprofile.min_salary, userprofile.min_ai_score, userprofile.ingestion_frequency 
+FROM userprofile
+2026-03-04 18:51:34 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [generated in 0.00022s] ()
+2026-03-04 18:51:34 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — UPDATE job SET status=?, sub_status=?, logs=? WHERE job.id = ?
+2026-03-04 18:51:34 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [generated in 0.00032s] ('TAILORING', 'System 1 — Initializing Pipeline...', '[{"msg": "System 1 \\u2014 Initializing Pipeline...", "type": "info", "t": "18:51:34"}]', 3)
+2026-03-04 18:51:34 [INFO    ] sqlalchemy.engine.Engine (base.py:2716) — COMMIT
+2026-03-04 18:51:34 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:51:34 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job 
+WHERE job.id = ?
+2026-03-04 18:51:34 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [generated in 0.00035s] (3,)
+2026-03-04 18:51:34 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:51:34 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:51:34 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 42.76s ago] ()
+2026-03-04 18:51:34 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:51:34 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id AS job_id, job.company_name AS job_company_name, job.job_title AS job_job_title, job.job_description AS job_job_description, job.match_score AS job_match_score, job.match_reason AS job_match_reason, job.tailored_match_score AS job_tailored_match_score, job.tailored_match_reason AS job_tailored_match_reason, job.status AS job_status, job.sub_status AS job_sub_status, job.job_url AS job_job_url, job.location AS job_location, job.salary AS job_salary, job.tailored_resume_path AS job_tailored_resume_path, job.tailored_bullets AS job_tailored_bullets, job.logs AS job_logs, job.analytics AS job_analytics, job.created_at AS job_created_at, job.composite_key AS job_composite_key, job.external_job_id AS job_external_job_id 
+FROM job 
+WHERE job.id = ?
+2026-03-04 18:51:34 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 5.953s ago] (3,)
+2026-03-04 18:51:34 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:51:34 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — UPDATE job SET sub_status=?, logs=? WHERE job.id = ?
+2026-03-04 18:51:34 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [generated in 0.00139s] ('System 1 — Block AST extracted', '[{"msg": "System 1 \\u2014 Block AST extracted", "type": "info", "t": "18:51:34"}]', 3)
+2026-03-04 18:51:34 [INFO    ] sqlalchemy.engine.Engine (base.py:2716) — COMMIT
+2026-03-04 18:51:34 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:51:34 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id AS job_id, job.company_name AS job_company_name, job.job_title AS job_job_title, job.job_description AS job_job_description, job.match_score AS job_match_score, job.match_reason AS job_match_reason, job.tailored_match_score AS job_tailored_match_score, job.tailored_match_reason AS job_tailored_match_reason, job.status AS job_status, job.sub_status AS job_sub_status, job.job_url AS job_job_url, job.location AS job_location, job.salary AS job_salary, job.tailored_resume_path AS job_tailored_resume_path, job.tailored_bullets AS job_tailored_bullets, job.logs AS job_logs, job.analytics AS job_analytics, job.created_at AS job_created_at, job.composite_key AS job_composite_key, job.external_job_id AS job_external_job_id 
+FROM job 
+WHERE job.id = ?
+2026-03-04 18:51:34 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 5.978s ago] (3,)
+2026-03-04 18:51:34 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — UPDATE job SET sub_status=?, logs=? WHERE job.id = ?
+2026-03-04 18:51:34 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 0.02211s ago] ('System 2 — Running gap analysis...', '[{"msg": "System 1 \\u2014 Block AST extracted", "type": "info", "t": "18:51:34"}, {"msg": "System 2 \\u2014 Running gap analysis...", "type": "info", "t": "18:51:34"}]', 3)
+2026-03-04 18:51:34 [INFO    ] sqlalchemy.engine.Engine (base.py:2716) — COMMIT
+2026-03-04 18:51:34 [INFO    ] resume_tailor.pipeline (pipeline.py:107) — Step 1: Structuring JD...
+2026-03-04 18:51:37 [WARNING ] resume_tailor.jd_structurer (jd_structurer.py:554) — LLM structuring (gemini) failed after 2398ms: LLM HTTP 429: {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-a
+2026-03-04 18:51:37 [DEBUG   ] resume_tailor.jd_structurer (jd_structurer.py:606) — GROQ_API_KEY not set — skipping Groq fallback
+2026-03-04 18:51:37 [WARNING ] resume_tailor.jd_structurer (jd_structurer.py:609) — All LLM attempts failed — using rule-based fallback
+2026-03-04 18:51:37 [INFO    ] resume_tailor.pipeline (pipeline.py:113) — JD structured via 'fallback' in 2ms. Title: '- Collaborate with product, engineering, and UX teams to build scalable GenAI use cases.' | Required: 1 items | Preferred: 8 items
+2026-03-04 18:51:37 [INFO    ] resume_tailor.pipeline (pipeline.py:122) — Step 2: Analyzing keyword gap...
+2026-03-04 18:51:38 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:51:38 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:51:38 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 45.82s ago] ()
+2026-03-04 18:51:38 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:51:41 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:51:41 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:51:41 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 48.83s ago] ()
+2026-03-04 18:51:41 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:51:44 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:51:44 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:51:44 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 51.84s ago] ()
+2026-03-04 18:51:44 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:51:47 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:51:47 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:51:47 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 54.86s ago] ()
+2026-03-04 18:51:47 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:51:48 [WARNING ] huggingface_hub.utils._http (_http.py:857) — Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+2026-03-04 18:51:50 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:51:50 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:51:50 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 57.87s ago] ()
+2026-03-04 18:51:50 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:51:53 [INFO    ] resume_tailor.pipeline (pipeline.py:131) — Analysis complete in 18053ms. Coverage: 3.1% | Critical missing: 7
+2026-03-04 18:51:53 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:51:53 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id AS job_id, job.company_name AS job_company_name, job.job_title AS job_job_title, job.job_description AS job_job_description, job.match_score AS job_match_score, job.match_reason AS job_match_reason, job.tailored_match_score AS job_tailored_match_score, job.tailored_match_reason AS job_tailored_match_reason, job.status AS job_status, job.sub_status AS job_sub_status, job.job_url AS job_job_url, job.location AS job_location, job.salary AS job_salary, job.tailored_resume_path AS job_tailored_resume_path, job.tailored_bullets AS job_tailored_bullets, job.logs AS job_logs, job.analytics AS job_analytics, job.created_at AS job_created_at, job.composite_key AS job_composite_key, job.external_job_id AS job_external_job_id 
+FROM job 
+WHERE job.id = ?
+2026-03-04 18:51:53 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 24.04s ago] (3,)
+2026-03-04 18:51:53 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — UPDATE job SET sub_status=?, logs=? WHERE job.id = ?
+2026-03-04 18:51:53 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 18.08s ago] ('System 3 — Generating tailoring strategy...', '[{"msg": "System 1 \\u2014 Block AST extracted", "type": "info", "t": "18:51:34"}, {"msg": "System 2 \\u2014 Running gap analysis...", "type": "info", "t": "18:51:34"}, {"msg": "System 3 \\u2014 Generating tailoring strategy...", "type": "info", "t": "18:51:53"}]', 3)
+2026-03-04 18:51:53 [INFO    ] sqlalchemy.engine.Engine (base.py:2716) — COMMIT
+2026-03-04 18:51:53 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:51:53 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id AS job_id, job.company_name AS job_company_name, job.job_title AS job_job_title, job.job_description AS job_job_description, job.match_score AS job_match_score, job.match_reason AS job_match_reason, job.tailored_match_score AS job_tailored_match_score, job.tailored_match_reason AS job_tailored_match_reason, job.status AS job_status, job.sub_status AS job_sub_status, job.job_url AS job_job_url, job.location AS job_location, job.salary AS job_salary, job.tailored_resume_path AS job_tailored_resume_path, job.tailored_bullets AS job_tailored_bullets, job.logs AS job_logs, job.analytics AS job_analytics, job.created_at AS job_created_at, job.composite_key AS job_composite_key, job.external_job_id AS job_external_job_id 
+FROM job 
+WHERE job.id = ?
+2026-03-04 18:51:53 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 24.04s ago] (3,)
+2026-03-04 18:51:53 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — UPDATE job SET sub_status=?, logs=? WHERE job.id = ?
+2026-03-04 18:51:53 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 18.08s ago] ('System 4 — AI Layer is rewriting blocks...', '[{"msg": "System 1 \\u2014 Block AST extracted", "type": "info", "t": "18:51:34"}, {"msg": "System 2 \\u2014 Running gap analysis...", "type": "info" ... (59 characters truncated) ... iloring strategy...", "type": "info", "t": "18:51:53"}, {"msg": "System 4 \\u2014 AI Layer is rewriting blocks...", "type": "info", "t": "18:51:53"}]', 3)
+2026-03-04 18:51:53 [INFO    ] sqlalchemy.engine.Engine (base.py:2716) — COMMIT
+2026-03-04 18:51:53 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:51:53 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:51:53 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 60.88s ago] ()
+2026-03-04 18:51:53 [INFO    ] google_genai.models (models.py:5636) — AFC is enabled with max remote calls: 10.
+2026-03-04 18:51:53 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:51:56 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:51:56 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:51:56 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 63.9s ago] ()
+2026-03-04 18:51:56 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:51:59 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:51:59 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:51:59 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 66.92s ago] ()
+2026-03-04 18:51:59 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:52:02 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:52:02 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:52:02 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 69.93s ago] ()
+2026-03-04 18:52:02 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:52:05 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:52:05 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:52:05 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 72.94s ago] ()
+2026-03-04 18:52:05 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:52:08 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:52:08 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:52:08 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 75.96s ago] ()
+2026-03-04 18:52:08 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:52:11 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:52:11 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:52:11 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 78.97s ago] ()
+2026-03-04 18:52:11 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:52:11 [DEBUG   ] asyncio (selector_events.py:64) — Using selector: EpollSelector
+2026-03-04 18:52:11 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:52:11 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id AS job_id, job.company_name AS job_company_name, job.job_title AS job_job_title, job.job_description AS job_job_description, job.match_score AS job_match_score, job.match_reason AS job_match_reason, job.tailored_match_score AS job_tailored_match_score, job.tailored_match_reason AS job_tailored_match_reason, job.status AS job_status, job.sub_status AS job_sub_status, job.job_url AS job_job_url, job.location AS job_location, job.salary AS job_salary, job.tailored_resume_path AS job_tailored_resume_path, job.tailored_bullets AS job_tailored_bullets, job.logs AS job_logs, job.analytics AS job_analytics, job.created_at AS job_created_at, job.composite_key AS job_composite_key, job.external_job_id AS job_external_job_id 
+FROM job 
+WHERE job.id = ?
+2026-03-04 18:52:11 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 43s ago] (3,)
+2026-03-04 18:52:11 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — UPDATE job SET sub_status=?, logs=? WHERE job.id = ?
+2026-03-04 18:52:11 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 37.04s ago] ('System 5 — Running schema validation...', '[{"msg": "System 1 \\u2014 Block AST extracted", "type": "info", "t": "18:51:34"}, {"msg": "System 2 \\u2014 Running gap analysis...", "type": "info" ... (150 characters truncated) ... is rewriting blocks...", "type": "info", "t": "18:51:53"}, {"msg": "System 5 \\u2014 Running schema validation...", "type": "info", "t": "18:52:11"}]', 3)
+2026-03-04 18:52:12 [INFO    ] sqlalchemy.engine.Engine (base.py:2716) — COMMIT
+2026-03-04 18:52:12 [WARNING ] agent.nodes (nodes.py:277) — Validation reject [b4]: fabricated tokens: {'integrating', 'architecture.'}
+2026-03-04 18:52:12 [WARNING ] agent.nodes (nodes.py:277) — Validation reject [b20]: fabricated tokens: {'leveraging'}
+2026-03-04 18:52:12 [WARNING ] agent.nodes (nodes.py:277) — Validation reject [b10]: fabricated tokens: {'utilizing'}
+2026-03-04 18:52:12 [WARNING ] agent.nodes (nodes.py:277) — Validation reject [b12]: fabricated tokens: {'techniques.', 'incorporating', 'flows'}
+2026-03-04 18:52:12 [WARNING ] agent.nodes (nodes.py:277) — Validation reject [b17]: fabricated tokens: {'evaluating', 'optimizing', 'enable'}
+2026-03-04 18:52:12 [INFO    ] agent.nodes (nodes.py:308) — Validation rejections (5):
+2026-03-04 18:52:12 [INFO    ] agent.nodes (nodes.py:310) —   ✗ b4: potential fabrication — injected tokens not in whitelist or JD: {'integrating', 'architecture.'}
+2026-03-04 18:52:12 [INFO    ] agent.nodes (nodes.py:310) —   ✗ b20: potential fabrication — injected tokens not in whitelist or JD: {'leveraging'}
+2026-03-04 18:52:12 [INFO    ] agent.nodes (nodes.py:310) —   ✗ b10: potential fabrication — injected tokens not in whitelist or JD: {'utilizing'}
+2026-03-04 18:52:12 [INFO    ] agent.nodes (nodes.py:310) —   ✗ b12: potential fabrication — injected tokens not in whitelist or JD: {'techniques.', 'incorporating', 'flows'}
+2026-03-04 18:52:12 [INFO    ] agent.nodes (nodes.py:310) —   ✗ b17: potential fabrication — injected tokens not in whitelist or JD: {'evaluating', 'optimizing', 'enable'}
+2026-03-04 18:52:12 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:52:12 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id AS job_id, job.company_name AS job_company_name, job.job_title AS job_job_title, job.job_description AS job_job_description, job.match_score AS job_match_score, job.match_reason AS job_match_reason, job.tailored_match_score AS job_tailored_match_score, job.tailored_match_reason AS job_tailored_match_reason, job.status AS job_status, job.sub_status AS job_sub_status, job.job_url AS job_job_url, job.location AS job_location, job.salary AS job_salary, job.tailored_resume_path AS job_tailored_resume_path, job.tailored_bullets AS job_tailored_bullets, job.logs AS job_logs, job.analytics AS job_analytics, job.created_at AS job_created_at, job.composite_key AS job_composite_key, job.external_job_id AS job_external_job_id 
+FROM job 
+WHERE job.id = ?
+2026-03-04 18:52:12 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 43s ago] (3,)
+2026-03-04 18:52:12 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — UPDATE job SET sub_status=?, logs=? WHERE job.id = ?
+2026-03-04 18:52:12 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 37.05s ago] ('System 7 — Exporting .docx with XML preservation...', '[{"msg": "System 1 \\u2014 Block AST extracted", "type": "info", "t": "18:51:34"}, {"msg": "System 2 \\u2014 Running gap analysis...", "type": "info" ... (253 characters truncated) ... idation...", "type": "info", "t": "18:52:11"}, {"msg": "System 7 \\u2014 Exporting .docx with XML preservation...", "type": "info", "t": "18:52:12"}]', 3)
+2026-03-04 18:52:12 [INFO    ] sqlalchemy.engine.Engine (base.py:2716) — COMMIT
+2026-03-04 18:52:12 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:52:12 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id AS job_id, job.company_name AS job_company_name, job.job_title AS job_job_title, job.job_description AS job_job_description, job.match_score AS job_match_score, job.match_reason AS job_match_reason, job.tailored_match_score AS job_tailored_match_score, job.tailored_match_reason AS job_tailored_match_reason, job.status AS job_status, job.sub_status AS job_sub_status, job.job_url AS job_job_url, job.location AS job_location, job.salary AS job_salary, job.tailored_resume_path AS job_tailored_resume_path, job.tailored_bullets AS job_tailored_bullets, job.logs AS job_logs, job.analytics AS job_analytics, job.created_at AS job_created_at, job.composite_key AS job_composite_key, job.external_job_id AS job_external_job_id 
+FROM job 
+WHERE job.id = ?
+2026-03-04 18:52:12 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 43.01s ago] (3,)
+2026-03-04 18:52:12 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — UPDATE job SET sub_status=?, logs=? WHERE job.id = ?
+2026-03-04 18:52:12 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 37.06s ago] ('System 8 — Running ATS scoring and analytics...', '[{"msg": "System 1 \\u2014 Block AST extracted", "type": "info", "t": "18:51:34"}, {"msg": "System 2 \\u2014 Running gap analysis...", "type": "info" ... (352 characters truncated) ... reservation...", "type": "info", "t": "18:52:12"}, {"msg": "System 8 \\u2014 Running ATS scoring and analytics...", "type": "info", "t": "18:52:12"}]', 3)
+2026-03-04 18:52:12 [INFO    ] sqlalchemy.engine.Engine (base.py:2716) — COMMIT
+2026-03-04 18:52:12 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:52:14 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:52:14 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:52:14 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 81.98s ago] ()
+2026-03-04 18:52:14 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:52:17 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:52:17 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:52:17 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 84.99s ago] ()
+2026-03-04 18:52:17 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:52:20 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:52:20 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:52:20 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 88s ago] ()
+2026-03-04 18:52:20 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:52:23 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:52:23 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:52:23 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 91.01s ago] ()
+2026-03-04 18:52:23 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:52:26 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:52:26 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:52:26 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 94.03s ago] ()
+2026-03-04 18:52:26 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:52:29 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:52:29 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:52:29 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 97.04s ago] ()
+2026-03-04 18:52:29 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:52:32 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:52:32 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:52:32 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 100s ago] ()
+2026-03-04 18:52:32 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:52:35 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:52:35 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:52:35 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 103.1s ago] ()
+2026-03-04 18:52:35 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:52:38 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:52:38 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:52:38 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 106.1s ago] ()
+2026-03-04 18:52:38 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:52:41 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:52:41 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:52:41 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 109.1s ago] ()
+2026-03-04 18:52:41 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:52:44 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:52:44 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:52:44 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 112.1s ago] ()
+2026-03-04 18:52:44 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:52:47 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:52:47 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:52:47 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 115.1s ago] ()
+2026-03-04 18:52:47 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:52:50 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:52:50 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:52:50 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 118.1s ago] ()
+2026-03-04 18:52:50 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:52:53 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:52:53 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:52:53 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 121.1s ago] ()
+2026-03-04 18:52:53 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:52:56 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:52:56 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:52:56 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 124.1s ago] ()
+2026-03-04 18:52:56 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:52:59 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:52:59 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:52:59 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 127.1s ago] ()
+2026-03-04 18:52:59 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
+2026-03-04 18:53:02 [INFO    ] sqlalchemy.engine.Engine (base.py:2710) — BEGIN (implicit)
+2026-03-04 18:53:02 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — SELECT job.id, job.company_name, job.job_title, job.job_description, job.match_score, job.match_reason, job.tailored_match_score, job.tailored_match_reason, job.status, job.sub_status, job.job_url, job.location, job.salary, job.tailored_resume_path, job.tailored_bullets, job.logs, job.analytics, job.created_at, job.composite_key, job.external_job_id 
+FROM job
+2026-03-04 18:53:02 [INFO    ] sqlalchemy.engine.Engine (base.py:1846) — [cached since 130.2s ago] ()
+2026-03-04 18:53:02 [INFO    ] sqlalchemy.engine.Engine (base.py:2713) — ROLLBACK
