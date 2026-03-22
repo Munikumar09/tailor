@@ -4,12 +4,12 @@ import React from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { 
-  ArrowLeft, 
-  Sparkles, 
-  ExternalLink, 
-  MapPin, 
-  DollarSign, 
-  Clock, 
+  ArrowLeft,
+  Sparkles,
+  ExternalLink,
+  MapPin,
+  DollarSign,
+  Clock,
   ChevronRight,
   Loader2,
   CheckCircle2,
@@ -18,10 +18,11 @@ import {
   Calendar,
   Briefcase,
   Target,
-  Download
+  Download,
+  RefreshCw
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useJob, useUpdateJobStatus, JobStatus } from "@/hooks/useJobs";
+import { useJob, useUpdateJobStatus, useRescoreJob, JobStatus } from "@/hooks/useJobs";
 import { useTailorResume } from "@/hooks/useTailor";
 
 const ScoreCircle = ({ score, size = 16 }: { score: number; size?: number }) => {
@@ -45,6 +46,7 @@ export default function JobDetailPage() {
   const { data: job, isLoading } = useJob(params.id as string);
   const { mutate: updateStatus } = useUpdateJobStatus();
   const tailorMutation = useTailorResume();
+  const rescoreMutation = useRescoreJob();
 
   if (isLoading) {
     return (
@@ -152,31 +154,34 @@ export default function JobDetailPage() {
               </div>
             </div>
 
-            {/* Extracted Keywords (Mocked for now as per wireframe) */}
+            {/* Extracted Keywords (by LLM) */}
             <div className="bg-[#1A1A1A] border border-zinc-800 rounded-3xl p-8 space-y-6">
               <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em]">Extracted Keywords (by LLM)</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {[
-                  { kw: "Edge Runtime", present: false, weight: "Critical" },
-                  { kw: "Core Web Vitals", present: false, weight: "Critical" },
-                  { kw: "Next.js", present: true, weight: "High" },
-                  { kw: "TypeScript", present: true, weight: "High" },
-                  { kw: "React Server Components", present: false, weight: "Medium" },
-                  { kw: "Performance Optimization", present: true, weight: "Medium" },
-                  { kw: "CI/CD Pipelines", present: true, weight: "Low" },
-                  { kw: "Monorepo Management", present: false, weight: "Low" },
-                ].map((k) => (
-                  <div key={k.kw} className="flex items-center gap-4 p-3 bg-zinc-900/50 border border-zinc-800 rounded-xl hover:border-zinc-700 transition-all">
-                    <div className={cn("w-6 h-6 rounded-lg flex items-center justify-center text-xs shadow-sm", k.present ? "bg-emerald-500/10 text-emerald-500" : "bg-amber-500/10 text-amber-500")}>
-                      {k.present ? "✓" : "!"}
+              {job.extracted_keywords && job.extracted_keywords.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {job.extracted_keywords.map((k) => (
+                    <div key={k.kw} className="flex items-center gap-4 p-3 bg-zinc-900/50 border border-zinc-800 rounded-xl hover:border-zinc-700 transition-all">
+                      <div className={cn("w-6 h-6 rounded-lg flex items-center justify-center text-xs shadow-sm", k.present ? "bg-emerald-500/10 text-emerald-500" : "bg-amber-500/10 text-amber-500")}>
+                        {k.present ? "✓" : "!"}
+                      </div>
+                      <div className="flex-1">
+                        <div className="text-xs font-bold text-zinc-200">{k.kw}</div>
+                        <div className="text-[9px] font-black text-zinc-600 uppercase tracking-tighter">{k.weight} Priority</div>
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <div className="text-xs font-bold text-zinc-200">{k.kw}</div>
-                      <div className="text-[9px] font-black text-zinc-600 uppercase tracking-tighter">{k.weight} Priority</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-10 space-y-2">
+                  <div className="text-zinc-700 text-2xl">⚙</div>
+                  <p className="text-[11px] text-zinc-600 font-bold uppercase tracking-widest text-center">
+                    Run tailoring to extract keywords
+                  </p>
+                  <p className="text-[10px] text-zinc-700 text-center max-w-[220px]">
+                    Keywords are extracted during the tailoring pipeline and matched against your resume.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -185,11 +190,28 @@ export default function JobDetailPage() {
             {/* AI Match Card */}
             <div className="bg-[#1A1A1A] border border-zinc-800 rounded-3xl p-8 space-y-6 shadow-xl relative overflow-hidden">
               <div className="absolute -top-12 -right-12 w-32 h-32 bg-indigo-500/5 rounded-full blur-3xl" />
-              <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] relative z-10">AI Match Score</h3>
+              <div className="flex items-center justify-between relative z-10">
+                <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em]">AI Match Score</h3>
+                <button
+                  onClick={() => rescoreMutation.mutate(job.id)}
+                  disabled={rescoreMutation.isPending}
+                  title="Recalculate score"
+                  className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-600 hover:text-zinc-300 transition-colors disabled:opacity-40"
+                >
+                  <RefreshCw size={13} className={rescoreMutation.isPending ? "animate-spin" : ""} />
+                </button>
+              </div>
               <div className="flex flex-col items-center py-4 space-y-6 relative z-10">
-                <ScoreCircle score={job.match_score} size={24} />
+                {rescoreMutation.isPending ? (
+                  <div className="flex flex-col items-center gap-3">
+                    <Loader2 size={40} className="animate-spin text-indigo-400" />
+                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Calculating…</span>
+                  </div>
+                ) : (
+                  <ScoreCircle score={job.match_score} size={24} />
+                )}
                 <p className="text-xs text-zinc-400 text-center leading-relaxed font-medium italic px-4">
-                  "{job.match_reason}"
+                  "{job.match_reason || "No score yet — click refresh to calculate."}"
                 </p>
               </div>
             </div>

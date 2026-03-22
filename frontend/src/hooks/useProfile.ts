@@ -35,17 +35,25 @@ export const useResumeText = () => {
   });
 };
 
+export interface ResumeRun {
+  id: string;
+  text: string;
+  bold: boolean;
+  italic: boolean;
+  underline: boolean;
+  fontSize: number | null;
+}
+
+export interface ResumeParagraph {
+  id: string;
+  /** "h1" | "h2" | "h3" | "bullet" | "paragraph" */
+  style: string;
+  ilvl: number;
+  runs: ResumeRun[];
+}
+
 export interface ResumeAST {
-  paragraphs: {
-    id: string;
-    style: string;
-    runs: {
-      id: string;
-      text: string;
-      bold: boolean;
-      italic: boolean;
-    }[];
-  }[];
+  paragraphs: ResumeParagraph[];
 }
 
 export const useResumeAST = (versionId?: number) => {

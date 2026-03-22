@@ -1,4 +1,5 @@
 *.docx
 .env
 *.ipynb
-*.log
+*.log*
+*.db*

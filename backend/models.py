@@ -33,6 +33,7 @@ class Job(SQLModel, table=True):
     tailored_bullets: Optional[List[dict]] = Field(default=[], sa_type=JSON)
     logs: Optional[List[dict]] = Field(default=[], sa_type=JSON)  # History of events
     analytics: Optional[dict] = Field(default=None, sa_type=JSON)  # TailoringAnalyticsReport
+    extracted_keywords: Optional[List[dict]] = Field(default=None, sa_type=JSON)  # [{kw, present, weight}]
     created_at: datetime = Field(default_factory=datetime.utcnow)
     composite_key: str = Field(unique=True)  # Company_Name + Job_Title
     external_job_id: Optional[str] = None

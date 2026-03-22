@@ -20,6 +20,15 @@ export interface Job {
   salary: string;
   tailored_resume_path: string | null;
   tailored_bullets: { old: string; new: string }[] | null;
+  analytics?: {
+    scoreDelta?: {
+      atsBefore?: number;
+      atsAfter?: number;
+      atsImprovement?: number;
+    };
+    passBand?: any;
+  } | null;
+  extracted_keywords?: { kw: string; present: boolean; weight: string }[] | null;
   created_at: string;
 }
 
@@ -73,6 +82,21 @@ export const useUpdateJobStatus = () => {
       return data;
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["jobs"] });
+    },
+  });
+};
+
+export const useRescoreJob = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (job_id: number) => {
+      const { data } = await api.post(`/jobs/${job_id}/rescore`);
+      return data as Job;
+    },
+    onSuccess: (job) => {
+      queryClient.setQueryData(["job", String(job.id)], job);
       queryClient.invalidateQueries({ queryKey: ["jobs"] });
     },
   });

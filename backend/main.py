@@ -8,10 +8,16 @@ import os
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
-from sqlmodel import Session
-from database import create_db_and_tables, get_session
+from sqlmodel import Session, select
+from database import create_db_and_tables, get_session, engine
 import models
+from models import Job, JobStatus
 from api import jobs, ingest, profile, tailor
+from datetime import datetime
+from dotenv import load_dotenv
+from resume_tailor.keyword_gap_analyzer import preload_models as _preload_nlp_models
+
+load_dotenv()
 
 app = FastAPI(title="AI Job Application Commander API")
 
@@ -28,6 +34,57 @@ app.add_middleware(
 @app.on_event("startup")
 def on_startup():
     create_db_and_tables()
+    _migrate_add_columns()
+    _reset_stuck_tailoring_jobs()
+    _preload_nlp_models()
+
+
+def _migrate_add_columns():
+    """Add new columns to existing tables without dropping data (SQLite-safe)."""
+    from sqlalchemy import text
+    migrations = [
+        "ALTER TABLE job ADD COLUMN extracted_keywords JSON",
+    ]
+    with Session(engine) as session:
+        for stmt in migrations:
+            try:
+                session.exec(text(stmt))
+                session.commit()
+                logger.info("Migration applied: %s", stmt)
+            except Exception:
+                # Column already exists — safe to ignore
+                session.rollback()
+
+
+def _reset_stuck_tailoring_jobs():
+    """
+    Reset any jobs left in TAILORING status back to PENDING.
+    These are orphaned background tasks killed by a server restart.
+    """
+    with Session(engine) as session:
+        stuck_jobs = session.exec(
+            select(Job).where(Job.status == JobStatus.TAILORING)
+        ).all()
+
+        if not stuck_jobs:
+            return
+
+        for job in stuck_jobs:
+            job.status = JobStatus.PENDING
+            job.sub_status = "Error: Server restarted during tailoring. Re-run to continue."
+            new_logs = list(job.logs or [])
+            new_logs.append({
+                "msg": "Server restarted — tailoring was interrupted. Re-run to continue.",
+                "type": "error",
+                "t": datetime.now().strftime("%H:%M:%S"),
+            })
+            job.logs = new_logs
+            session.add(job)
+
+        session.commit()
+        logger.warning(
+            "Reset %d stuck TAILORING job(s) to PENDING on startup", len(stuck_jobs)
+        )
 
 
 app.include_router(jobs.router)

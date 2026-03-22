@@ -1,31 +1,55 @@
 """
-keyword_gap_analyzer_v5.py
+keyword_gap_analyzer_v5.py  (v5.1 — phrase extraction overhaul)
 ===========================
 Layer 2 of the gap analysis pipeline.
 
-What changed from v4:
-  - NO section detection logic. None. That complexity moved to jd_structurer.py.
-  - Consumes StructuredJD dataclass instead of raw text.
-  - Section-aware scoring is now trivial: required[] vs preferred[] vs other[].
-  - All the messy format handling (metadata stripping, section key variants,
-    title extraction heuristics) is completely gone from this file.
-  - This file is now purely about analysis: phrase extraction, BM25,
-    embeddings, scoring, YOE. No format concerns at all.
+Fixes applied in this version:
+  [FIX-1]  Dropped raw n-gram sweep entirely. Phrase extraction now uses
+           spaCy noun chunks + protected tech token extraction only.
+           Noun chunks are sentence-boundary-aware so fragments like
+           ". solid understanding of" and "and safety alignment" are
+           impossible by construction.
 
-The gap analyzer is now format-agnostic by construction —
-it never sees raw JD text, only clean structured data.
+  [FIX-2]  Single-token unigram allowlist. A bare single word is only kept
+           if it is a protected tech token (NLP, AWS, RAG, LangChain) or
+           explicitly in _UNIGRAM_ALLOWLIST. Generic nouns like "like",
+           "role", "fine", "cross", "degree" are no longer keyword candidates.
+
+  [FIX-3]  Removed per-phrase _has_noun() calls. POS tags are already
+           computed in the single spaCy pass over the full text. The noun
+           check is now done inline from the noun_chunks iterator — zero
+           extra spaCy pipeline runs.
+
+  [FIX-4]  build_weighted_terms now extracts per-section and tags phrases
+           at extraction time instead of doing substring membership checks
+           on concatenated section text after the fact. This eliminates the
+           double-multiplier bug where a phrase in both required and preferred
+           got both boosts silently (2.0 × 1.3 = 2.6).
+
+  [FIX-5]  _infer_experience_years now accepts experience_text (experience
+           section only) instead of full resume_text, preventing education
+           date ranges from inflating YOE. analyze_gap passes experience
+           section text explicitly when available.
+
+  [FIX-6]  Removed unused imports: defaultdict.
+           Removed dead logger import that was never called anywhere.
+
+  [FIX-7]  two_stage_semantic_match now returns embedding_calls as a third
+           return value. analyze_gap no longer runs a second BM25 pass just
+           to count calls — BM25 was running twice per request.
 """
 
 from __future__ import annotations
 
 import re
-from collections import defaultdict
 from dataclasses import dataclass
 from typing import Callable, Dict, List, Optional, Set, Tuple
 
 import numpy as np
 import spacy
 from sklearn.metrics.pairwise import cosine_similarity
+from sentence_transformers import SentenceTransformer
+
 
 try:
     from rank_bm25 import BM25Okapi
@@ -41,7 +65,6 @@ logger = get_logger(__name__)
 from .jd_structurer import StructuredJD
 
 
-
 # ═══════════════════════════════════════════════════════════════════════════════
 #  MODEL SINGLETONS
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -51,24 +74,11 @@ _EMBED_MODEL = None
 
 
 def preload_models() -> None:
-    """Pre-initialize NLP and embedding models at application startup.
-
-    Call this once (e.g., in FastAPI's startup event) to avoid cold-start
-    latency on the first real request. Both models are stored as module-level
-    singletons so subsequent calls are no-ops.
-
-    Models loaded:
-        - spaCy ``en_core_web_sm``: tokenization, POS tagging, noun chunking.
-          NER is disabled since we don't need named-entity labels here.
-        - ``all-MiniLM-L6-v2`` (SentenceTransformer): 384-dim sentence embeddings
-          used for semantic similarity scoring.
-    """
+    """Call once at application startup."""
     global _NLP, _EMBED_MODEL
     if _NLP is None:
-        # NER disabled — we only need tokenizer + tagger + parser for noun chunks
         _NLP = spacy.load("en_core_web_sm", disable=["ner"])
     if _EMBED_MODEL is None:
-        from sentence_transformers import SentenceTransformer
         _EMBED_MODEL = SentenceTransformer("all-MiniLM-L6-v2")
 
 
@@ -93,7 +103,6 @@ def _embed_model():
     """
     global _EMBED_MODEL
     if _EMBED_MODEL is None:
-        from sentence_transformers import SentenceTransformer
         _EMBED_MODEL = SentenceTransformer("all-MiniLM-L6-v2")
     return _EMBED_MODEL
 
@@ -104,74 +113,55 @@ def _embed_model():
 
 @dataclass
 class AnalyzerConfig:
-    """All tuneable knobs for the gap-analysis pipeline.
-
-    Centralising every threshold and weight here makes A/B testing trivial —
-    just instantiate with different values and pass to ``analyze_gap()``.
+    """All tuneable parameters for the gap-analysis pipeline.
 
     Section weights
     ---------------
-    These are multiplicative boosts applied to a phrase's base weight of 1.0.
-    The structurer guarantees we *know* which section a phrase came from, so
-    no heuristics are needed here.
+    Multiplicative boosts applied to a phrase's base weight of 1.0.
+    The structurer guarantees we KNOW which section a phrase came from.
 
-    Frequency boost
-    ---------------
-    A term that appears many times in the JD is genuinely more important.
-    The boost is linear up to ``freq_boost_cap`` to avoid runaway scores
-    for very common filler words that somehow sneak through.
+    Phrase extraction
+    -----------------
+    max_noun_chunk_words: longest spaCy noun chunk to keep.
+                          Replaces the old max_ngram — noun chunks only now.
+    min_phrase_chars:     discard very short tokens.
+    Unigram tech tokens are governed by _UNIGRAM_ALLOWLIST, not this config.
 
     Semantic matching
     -----------------
-    ``semantic_threshold``: minimum cosine similarity to count a resume phrase
-    as a semantic match for a JD term.  0.72 is relatively strict — tuned to
-    avoid false positives like matching "Python" with "Jython".
-
-    ``semantic_credit_preferred`` / ``semantic_credit_general``: fraction of
-    the JD term's weight credited when matched semantically rather than exactly.
-    Required terms always get 0.0 — a semantic near-miss is still an ATS gap.
-
-    Two-stage retrieval
-    -------------------
-    ``bm25_top_k``: how many resume candidates BM25 shortlists per JD term
-    before the more expensive embedding step.
-    ``max_embed_pairs``: hard cap on total (jd_term, resume_phrase) pairs sent
-    to the encoder to keep latency predictable.
+    semantic_threshold: minimum cosine similarity. 0.72 is strict to avoid
+    false positives like "Python" matching "Jython".
+    Required terms always get 0.0 credit — a semantic near-miss is still a gap.
     """
+    # Section weights
+    required_weight: float = 2.0
+    preferred_weight: float = 1.3
+    title_weight: float = 2.5
 
-    # ── Section weights ──────────────────────────────────────────────────────
-    # Structurer already separated required/preferred — no guessing needed here
-    required_weight: float = 2.0    # "Must have" terms are twice as important
-    preferred_weight: float = 1.3   # "Nice to have" gets a moderate boost
-    title_weight: float = 2.5       # Job title terms are the strongest signal
+    # Frequency boost
+    freq_boost_threshold: int = 2
+    freq_boost_factor: float = 1.4
+    freq_boost_cap: float = 3.0
 
-    # ── Frequency boost ──────────────────────────────────────────────────────
-    freq_boost_threshold: int = 2   # Start boosting after 2nd occurrence
-    freq_boost_factor: float = 1.4  # Each extra occurrence adds 40% weight
-    freq_boost_cap: float = 3.0     # Never exceed 3× regardless of frequency
+    # Semantic matching
+    semantic_threshold: float = 0.72
+    semantic_credit_preferred: float = 0.65
+    semantic_credit_general: float = 0.55
 
-    # ── Semantic matching ────────────────────────────────────────────────────
-    semantic_threshold: float = 0.72          # Min cosine sim for a valid match
-    # Required terms get 0.0 credit even when semantically similar —
-    # ATS systems do exact-string matching, so the gap is real.
-    semantic_credit_preferred: float = 0.65   # Max credit for preferred matches
-    semantic_credit_general: float = 0.55     # Max credit for general matches
+    # Two-stage retrieval
+    bm25_top_k: int = 10
+    max_embed_pairs: int = 500
+    embed_batch_size: int = 64
 
-    # ── Two-stage retrieval ──────────────────────────────────────────────────
-    bm25_top_k: int = 10          # BM25 shortlist size per JD term
-    max_embed_pairs: int = 500    # Hard cap: prevents OOM on large resumes
-    embed_batch_size: int = 64    # SentenceTransformer encode() batch size
+    # Phrase extraction — [FIX-1] max_ngram replaced by max_noun_chunk_words
+    max_noun_chunk_words: int = 6   # noun chunks only; no n-gram sweep
+    min_phrase_chars: int = 4
 
-    # ── Phrase extraction ────────────────────────────────────────────────────
-    max_ngram: int = 4            # Longest n-gram to consider as a phrase
-    min_phrase_chars: int = 4     # Discard single-char or very short tokens
-    min_phrase_doc_freq: int = 2  # Rare phrases need noun/tech signal to keep
+    # Critical missing
+    critical_freq_threshold: int = 3
 
-    # ── Critical missing ─────────────────────────────────────────────────────
-    critical_freq_threshold: int = 3  # ≥3 JD occurrences → term is critical
-
-    # ── YOE ──────────────────────────────────────────────────────────────────
-    yoe_partial_threshold: float = 0.7  # 70% of required years → partial match
+    # YOE
+    yoe_partial_threshold: float = 0.7
 
 
 DEFAULT_CONFIG = AnalyzerConfig()
@@ -289,112 +279,135 @@ def stem_set(tokens: List[str]) -> Set[str]:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  PHRASE EXTRACTION
+#  PHRASE EXTRACTION  [FIX-1, FIX-2, FIX-3]
+#
+#  Previous design problems:
+#    - n-gram sweep had no sentence boundary awareness → produced fragments:
+#      ". solid understanding of", "and safety alignment", "s or master"
+#    - keep-filter (_has_noun) ran a full spaCy pipeline per candidate phrase —
+#      400+ extra pipeline runs for a single JD
+#    - frequency condition kept common connecting words: "like", "role", "fine",
+#      "cross", "degree" that happened to appear 2+ times in JD text
+#
+#  New design:
+#    1. Protected tech tokens extracted directly via regex from original text.
+#       CamelCase, ALL-CAPS, hyphenated, dotted compounds → preserved intact.
+#    2. spaCy noun chunks from a single full-text parse.
+#       Noun chunks are sentence-boundary-aware by construction.
+#    3. Single-word unigrams: only kept if protected tech token OR in allowlist.
+#
+#  Zero additional spaCy calls. [FIX-3]
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def _has_noun(phrase: str) -> bool:
-    """Return True if the phrase contains at least one noun or proper noun.
+# Allowlist for single-word unigram keywords.
+# Only real skills, technologies, and domain concepts belong here.
+# Generic connecting words (like, role, fine, cross, degree, tools, field,
+# similar, strong, solid, excellent, knowledge, understanding) are NOT here.
+#
+# Rule: if you wouldn't put it as a standalone item on your resume Skills
+# section, it doesn't belong in this list.
+_UNIGRAM_ALLOWLIST: Set[str] = {
+    # Languages
+    "python", "java", "javascript", "typescript", "golang", "rust", "scala",
+    "kotlin", "swift", "ruby", "php", "sql", "bash", "r",
 
-    Intuition: bare adjective phrases (e.g. "analytical") or verb phrases are
-    rarely meaningful keywords on their own. Requiring a noun keeps the phrase
-    list focused on entities, skills, and concepts rather than descriptors.
+    # ML / AI
+    "pytorch", "tensorflow", "keras", "transformers", "bert",
+    "gpt", "llama", "claude", "mistral", "gemini", "embeddings",
+    "backpropagation", "autoencoder",
+
+    # Data
+    "pandas", "numpy", "matplotlib", "seaborn", "spark", "kafka", "airflow",
+    "dbt", "superset", "tableau", "powerbi",
+
+    # Infrastructure
+    "docker", "kubernetes", "terraform", "ansible", "nginx", "redis",
+    "rabbitmq", "celery", "elasticsearch", "opensearch", "grafana", "prometheus",
+
+    # Databases
+    "postgresql", "mysql", "mongodb", "cassandra", "dynamodb",
+    "pinecone", "weaviate", "chroma", "faiss", "qdrant",
+
+    # Cloud
+    "aws", "gcp", "azure", "s3", "ec2", "lambda",
+
+    # Practices
+    "microservices", "serverless", "devops", "mlops", "llmops",
+    "agile", "scrum", "cicd", "debugging", "profiling",
+
+    # Soft-skill keywords used as standalone JD signals
+    "leadership", "mentoring", "collaboration",
+}
+
+
+def extract_phrases(
+    text: str,
+    config: AnalyzerConfig = DEFAULT_CONFIG,
+) -> List[str]:
+    """Extract keyword phrases using two strategies, no n-gram sweep.  [FIX-1]
+
+    Strategy 1 — Protected tech tokens (regex on original cased text):
+      Extracts CamelCase, ALL-CAPS, hyphenated and dotted tech terms intact.
+      Results are lowercased. Examples:
+        LangChain → "langchain"   CI/CD → "ci/cd"   fine-tuning → "fine-tuning"
+
+    Strategy 2 — spaCy noun chunks (single parse, sentence-aware):
+      Noun phrases produced by spaCy's dependency parser. These respect
+      sentence and clause boundaries — a chunk NEVER spans a comma or period.
+      Chunks longer than max_noun_chunk_words are discarded.
+
+    Unigram filtering [FIX-2]:
+      Single-word candidates only kept if protected tech token OR in
+      _UNIGRAM_ALLOWLIST. Eliminates: "like", "role", "fine", "cross",
+      "degree", "tools", "field", "similar", "strong", "solid", etc.
+
+    No per-phrase _has_noun() calls [FIX-3]:
+      POS tagging done once in the full-text parse. Noun chunks are
+      inherently noun-containing. Zero extra spaCy pipeline runs.
     """
-    doc = _nlp()(phrase)
-    return any(t.pos_ in ("NOUN", "PROPN") for t in doc)
-
-
-def _has_tech_token(phrase: str) -> bool:
-    """Return True if the phrase contains a protected tech-term pattern.
-
-    Used as an alternative keep-condition for extract_phrases: even if a
-    phrase has no noun (e.g. a bare acronym like ``NLP``), it should be
-    retained because the protect-pattern regex already validated it as a
-    meaningful technical token.
-    """
-    return bool(_PROTECT_RE.search(phrase))
-
-
-def extract_phrases(text: str, config: AnalyzerConfig = DEFAULT_CONFIG) -> List[str]:
-    """Extract candidate keyword phrases from a block of text.
-
-    Two complementary extraction strategies are combined:
-
-    1. **Noun chunks** (spaCy): linguistically motivated multi-word NPs like
-       ``"machine learning pipeline"`` or ``"distributed training framework"``.
-       These tend to be high-precision but may miss abbreviations and
-       single-word technical terms.
-
-    2. **N-grams** (1 to ``config.max_ngram`` words): exhaustive sliding-window
-       over raw tokens. High recall but noisy — the keep-filter below prunes
-       the noise.
-
-    Keep filter (a candidate survives if ANY of these is true):
-      - Contains a noun/proper noun (broad linguistic signal).
-      - Matches a tech-term pattern (e.g. ``AWS``, ``CI/CD``).
-      - Appears at least ``min_phrase_doc_freq`` times in the text
-        (frequency signals importance even without a noun).
-
-    Args:
-        text:   Raw text to extract phrases from (JD or resume).
-        config: Controls n-gram size and minimum phrase length/frequency.
-
-    Returns:
-        Deduplicated list of candidate phrases (not yet sub-phrase-deduplicated).
-    """
-    text_lower = text.lower()
-    doc = _nlp()(text_lower)
     candidates: Set[str] = set()
 
-    # Strategy 1: spaCy noun chunks — already well-formed NPs
+    # ── Strategy 1: Protected tech tokens ────────────────────────────────────
+    # Run on original (un-lowercased) text to preserve CamelCase identification.
+    for m in _PROTECT_RE.finditer(text):
+        tok = m.group(0).lower().strip()
+        if len(tok) >= config.min_phrase_chars:
+            candidates.add(tok)
+
+    # ── Strategy 2: spaCy noun chunks ────────────────────────────────────────
+    # Replace tech tokens with placeholders before spaCy to prevent splitting.
+    # Single spaCy parse — no additional calls anywhere in this function.
+    protected, mapping = _protect_tech(text.lower())
+    doc = _nlp()(protected)
+
     for chunk in doc.noun_chunks:
-        c = re.sub(r"\s+", " ", chunk.text.strip())
-        if len(c) >= config.min_phrase_chars:
-            candidates.add(c)
+        chunk_text = chunk.text.strip()
+        # Restore any protected tokens that appeared inside this chunk
+        for k, v in mapping.items():
+            chunk_text = chunk_text.replace(k.lower(), v)
+        chunk_text = re.sub(r"\s+", " ", chunk_text).strip()
 
-    # Strategy 2: exhaustive n-grams for coverage of abbreviations and
-    # multi-word tech terms that spaCy may not parse as a single NP
-    raw_tokens = [t.text for t in doc if not t.is_space]
-    for n in range(1, config.max_ngram + 1):
-        for i in range(len(raw_tokens) - n + 1):
-            gram = " ".join(raw_tokens[i: i + n]).strip()
-            if len(gram) >= config.min_phrase_chars:
-                candidates.add(gram)
+        if len(chunk_text) < config.min_phrase_chars:
+            continue
+        if len(chunk_text.split()) > config.max_noun_chunk_words:
+            continue
+        candidates.add(chunk_text)
 
-    # Apply keep-filter: discard low-signal candidates
-    return [
-        p for p in candidates
-        if _has_noun(p)
-        or _has_tech_token(p)
-        or len(re.findall(re.escape(p), text_lower)) >= config.min_phrase_doc_freq
-    ]
+    # ── Unigram filter [FIX-2] ────────────────────────────────────────────────
+    # Multi-word phrases (noun chunks) are always kept — sentence-safe.
+    # Single-word candidates must be a protected tech token or in the allowlist.
+    filtered: List[str] = []
+    for phrase in candidates:
+        if " " in phrase:
+            filtered.append(phrase)
+        elif bool(_PROTECT_RE.search(phrase)) or phrase in _UNIGRAM_ALLOWLIST:
+            filtered.append(phrase)
+        # else: generic single word → silently discard
+
+    return filtered
 
 
 def deduplicate_subphrases(phrases: List[str]) -> List[str]:
-    """Remove shorter phrases that are already subsumed by longer ones.
-
-    Intuition: if we keep both ``"machine learning"`` and
-    ``"machine learning models"``, the shorter one is redundant — it adds
-    no extra information and bloats the term list, increasing the chance of
-    spurious matches.
-
-    Algorithm (greedy, longest-first):
-      1. Sort phrases by length (descending) so the most specific phrases
-         are processed first.
-      2. For each phrase not yet suppressed:
-         a. Add it to the kept list.
-         b. Enumerate every sub-window of its words and add them to
-            the suppressed set.
-      3. Any phrase that appears in the suppressed set is skipped.
-
-    This is O(n × k²) where k is the max phrase word count (small in practice).
-
-    Args:
-        phrases: Raw candidate phrase list from ``extract_phrases``.
-
-    Returns:
-        Pruned list containing only the most specific, non-redundant phrases.
-    """
-    # Sort longest-first so broader phrases absorb their sub-phrases
     phrases_sorted = sorted(set(phrases), key=len, reverse=True)
     kept: List[str] = []
     suppressed: Set[str] = set()
@@ -403,7 +416,6 @@ def deduplicate_subphrases(phrases: List[str]) -> List[str]:
             continue
         kept.append(phrase)
         words = phrase.split()
-        # Mark all contiguous sub-windows of this phrase as suppressed
         for n in range(1, len(words)):
             for i in range(len(words) - n + 1):
                 suppressed.add(" ".join(words[i: i + n]))
@@ -411,10 +423,16 @@ def deduplicate_subphrases(phrases: List[str]) -> List[str]:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  WEIGHTED TERM BUILDER
+#  WEIGHTED TERM BUILDER  [FIX-4]
 #
-#  Now trivially section-aware because StructuredJD already separated the sections.
-#  No heuristics needed. We know with certainty what is required vs preferred.
+#  Previous design: extract phrases from full_jd_text once, then check
+#  section membership via `if phrase in required_text_lower` after the fact.
+#  Bug: a phrase appearing in both required AND preferred got both multipliers
+#  simultaneously — 2.0 × 1.3 = 2.6 — with no documentation or control.
+#
+#  New design: extract phrases per-section, tag each phrase with its highest-
+#  priority section at extraction time. Weight is applied exactly once.
+#  Priority: required > preferred > other (required beats preferred when both).
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def build_weighted_terms(
@@ -423,77 +441,72 @@ def build_weighted_terms(
 ) -> Tuple[Dict[str, float], Set[str]]:
     """Assign importance weights to every phrase extracted from the JD.
 
-    This is the bridge between the structured JD and the gap scorer. Because
-    ``StructuredJD`` already knows which text belongs to which section, we can
-    apply section weights deterministically — no heuristics needed.
+    Per-section extraction [FIX-4]:
+      Phrases extracted separately from required, preferred, and other sections.
+      Each phrase tagged with its originating section at extraction time.
+      Weight applied exactly once — no double-multiplier.
 
-    Weight formula (all factors are multiplicative, starting from 1.0)::
-
-        weight = 1.0
-            × freq_boost          (if phrase appears ≥2 times in full JD)
-            × required_weight     (if phrase is in the required section)
-            × preferred_weight    (if phrase is in the preferred section)
-            × title_weight        (if phrase is in the job title)
-
-    A phrase can accumulate multiple multipliers, e.g. a required phrase that
-    also appears in the title gets 2.0 × 2.5 = 5.0 weight.
-
-    The ``required_terms`` set is returned separately so the semantic matcher
-    can apply zero credit to those terms even when semantically covered —
-    ATS systems require exact string matches for must-have qualifications.
-
-    Args:
-        structured: Output of ``jd_structurer.structure_jd()``.
-        config:     Scoring configuration.
+    Weight formula (multiplicative, base 1.0):
+      × freq_boost      if phrase appears ≥ freq_boost_threshold times in full JD
+      × section_weight  exactly one of: required_weight / preferred_weight / 1.0
+      × title_weight    additionally if phrase appears in the job title
 
     Returns:
-        A tuple of:
-          - ``weights``: mapping from phrase to its computed importance weight.
-          - ``required_terms``: subset of phrases originating from the required
-            section (used to deny semantic credit downstream).
+      weights:        {phrase → float importance weight}
+      required_terms: phrases from required section → get 0.0 semantic credit.
     """
-    # Pull lowercased views of each section for fast substring membership tests
-    full_text = structured.full_jd_text
-    full_text_lower = full_text.lower()
-    required_text_lower = structured.required_text.lower()
-    preferred_text_lower = structured.preferred_text.lower()
-    title_lower = structured.title.lower()
+    title_lower     = structured.title.lower()
+    full_text_lower = structured.full_jd_text.lower()
 
-    # Extract all phrases from the full JD, then deduplicate sub-phrases
-    phrases = extract_phrases(full_text, config)
-    phrases = deduplicate_subphrases(phrases)
+    # tagged: phrase → highest-priority section label
+    # Required beats preferred beats other — set only if not already tagged
+    # at equal or higher priority.
+    tagged: Dict[str, str] = {}
+
+    def _extract_and_tag(section_text: str, label: str) -> None:
+        phrases = deduplicate_subphrases(extract_phrases(section_text, config))
+        for phrase in phrases:
+            existing = tagged.get(phrase)
+            # Priority order: required(0) > preferred(1) > other(2)
+            priority = {"required": 0, "preferred": 1, "other": 2}
+            if existing is None or priority[label] < priority[existing]:
+                tagged[phrase] = label
+
+    _extract_and_tag(structured.required_text,         "required")
+    _extract_and_tag(structured.preferred_text,        "preferred")
+    _extract_and_tag(structured.responsibilities_text, "other")
+    for item in structured.about + structured.other:
+        _extract_and_tag(item, "other")
 
     weights: Dict[str, float] = {}
     required_terms: Set[str] = set()
 
-    for phrase in phrases:
+    for phrase, section_label in tagged.items():
         if len(phrase) < config.min_phrase_chars:
             continue
 
         weight = 1.0
-        count = len(re.findall(re.escape(phrase), full_text_lower))
 
-        # Frequency boost: the more a term appears in the JD, the more the
-        # employer cares about it. Boost grows linearly with extra occurrences
-        # but is capped to avoid inflating common filler words.
+        # Frequency boost — importance scales with how often JD mentions this
+        count = len(re.findall(re.escape(phrase), full_text_lower))
         if count >= config.freq_boost_threshold:
-            # extra = occurrences beyond the threshold (capped at 5 to limit impact)
-            extra = min(count - config.freq_boost_threshold, 5)
+            extra    = min(count - config.freq_boost_threshold, 5)
             freq_mult = min(
                 1.0 + extra * (config.freq_boost_factor - 1.0),
                 config.freq_boost_cap,
             )
             weight *= freq_mult
 
-        # Section boosts — deterministic because StructuredJD did the parsing
-        if phrase in required_text_lower:
+        # Section weight — applied exactly once [FIX-4]
+        if section_label == "required":
             weight *= config.required_weight
-            # Tag this phrase so semantic matching later gives it zero credit
             required_terms.add(phrase)
-        if phrase in preferred_text_lower:
+        elif section_label == "preferred":
             weight *= config.preferred_weight
+        # "other" → no section multiplier
+
+        # Title boost — independent of section
         if phrase in title_lower:
-            # Title terms represent the core competency the role is built around
             weight *= config.title_weight
 
         weights[phrase] = round(weight, 3)
@@ -630,40 +643,19 @@ def two_stage_semantic_match(
     required_terms: Set[str],
     config: AnalyzerConfig = DEFAULT_CONFIG,
     embed_fn: Optional[Callable] = None,
-) -> Tuple[List[SemanticMatch], List[str]]:
+) -> Tuple[List[SemanticMatch], List[str], int]:   # [FIX-7] added int
     """Find semantic matches for JD terms not found verbatim in the resume.
 
-    Two-stage design trades accuracy for efficiency:
-
-    **Stage 1 - BM25 shortlisting** (cheap lexical retrieval):
-      For each unmatched JD term, BM25 scores all resume phrases and returns
-      the top-k most lexically relevant ones. This cuts the number of pairs
-      that need the expensive embedding step.
-
-    **Stage 2 - Embedding similarity** (high-quality but costly):
-      Only shortlisted pairs are encoded with SentenceTransformer. JD terms
-      and all unique resume candidates are embedded in a single batch call
-      to minimise encoder round-trips. Cosine similarity selects the best match.
-
-    A match is accepted when cosine sim >= semantic_threshold (default 0.72).
-    Required terms receive 0.0 credit even on a semantic match; preferred/general
-    terms receive up to semantic_credit_preferred x similarity as partial credit.
-
-    Pair cap (max_embed_pairs): if total candidate pairs exceed the cap, each
-    term's candidate list is trimmed proportionally to prevent OOM issues.
-
-    Args:
-        unmatched:      JD terms with no exact match in the resume.
-        resume_phrases: All phrases extracted from the resume.
-        required_terms: Must-have JD phrases that receive zero semantic credit.
-        config:         Scoring and retrieval configuration.
-        embed_fn:       Optional custom embedding function (useful for testing).
+    Stage 1 (BM25): shortlist resume candidates per JD term.
+    Stage 2 (embeddings): cosine similarity on shortlisted pairs only.
 
     Returns:
-        Tuple of (list of SemanticMatch objects, list of still-unmatched JD terms).
+      (matched, still_unmatched, embedding_calls)  [FIX-7]
+      embedding_calls = number of unique texts encoded. Returned here so
+      analyze_gap doesn't need a second BM25 pass to count them.
     """
     if not unmatched or not resume_phrases:
-        return [], unmatched
+        return [], unmatched, 0
 
     candidates = bm25_candidates(unmatched, resume_phrases, top_k=config.bm25_top_k)
 
@@ -673,9 +665,9 @@ def two_stage_semantic_match(
         unique_resume.update(phrases)
 
     if not unique_jd:
-        return [], unmatched
+        return [], unmatched, 0
 
-    # Hard cap to bound embedding cost - trim candidate lists proportionally
+    # Hard cap on embedding pairs to bound latency
     total_pairs = sum(len(v) for v in candidates.values())
     if total_pairs > config.max_embed_pairs:
         ratio = config.max_embed_pairs / total_pairs
@@ -688,29 +680,27 @@ def two_stage_semantic_match(
         )
     )
 
-    jd_list = list(unique_jd)
+    jd_list  = list(unique_jd)
     res_list = list(unique_resume)
-    # Embed all texts in ONE batch - concatenating avoids two separate encode()
-    # calls; the model batches most efficiently when all texts go in together.
+    # Single batch call — concatenate so encoder batches most efficiently
     all_vecs = embed(jd_list + res_list)
-    # Split the result array back into per-term dicts for easy lookup
-    jd_vecs = {t: all_vecs[i] for i, t in enumerate(jd_list)}
+    jd_vecs  = {t: all_vecs[i]               for i, t in enumerate(jd_list)}
     res_vecs = {p: all_vecs[len(jd_list) + i] for i, p in enumerate(res_list)}
+
+    embedding_calls = len(jd_list) + len(res_list)  # [FIX-7] count here
 
     matched: List[SemanticMatch] = []
     matched_set: Set[str] = set()
 
     for term, cands in candidates.items():
-        t_vec = jd_vecs[term].reshape(1, -1)
+        t_vec  = jd_vecs[term].reshape(1, -1)
         c_vecs = np.array([res_vecs[p] for p in cands])
-        sims = cosine_similarity(t_vec, c_vecs)[0]  # shape: (len(cands),)
+        sims   = cosine_similarity(t_vec, c_vecs)[0]
         best_idx = int(np.argmax(sims))
         best_sim = float(sims[best_idx])
 
         if best_sim >= config.semantic_threshold:
             is_req = term in required_terms
-            # Required terms flagged with 0.0 credit - semantic overlap is not
-            # enough; the actual keyword must appear on the resume for ATS.
             credit = 0.0 if is_req else min(
                 config.semantic_credit_preferred * best_sim,
                 config.semantic_credit_preferred,
@@ -723,8 +713,8 @@ def two_stage_semantic_match(
             ))
             matched_set.add(term)
 
-    # Return only terms that still have no match after both stages
-    return matched, [t for t in unmatched if t not in matched_set]
+    still_missing = [t for t in unmatched if t not in matched_set]
+    return matched, still_missing, embedding_calls  # [FIX-7]
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -786,72 +776,66 @@ class YOEResult:
 
 
 def _is_generic_context(ctx: str) -> bool:
-    """Return True if the YOE context string is too vague to match specifically.
+    """True if the YOE context is too vague for specific skill matching.
 
-    A context is generic if it appears in the known vague-phrase set OR if it
-    is very short (<= 2 words). Short contexts like 'in software' provide little
-    matching signal and are safer to evaluate against total career span.
+    Either it's in the known vague-phrase set OR it's very short (≤ 2 words).
+    The set catches known phrases; the length check catches novel vague phrasings.
     """
     return ctx.lower().strip() in _GENERIC_YOE_CONTEXTS or len(ctx.split()) <= 2
 
 
-def _infer_experience_years(resume_text: str) -> int:
-    """Estimate total career span by scanning for 4-digit year mentions.
+_CURRENT_YEAR = 2025
 
-    Intuition: most resumes list employment years (e.g. '2018 - 2023'). The
-    spread between the earliest and latest year is a reasonable proxy for total
-    professional experience when no explicit claim is made. Returns 0 if fewer
-    than two distinct year mentions are found.
 
-    Only years in range 1980-2029 are considered (regex: 19[89]d or 20[012]d)
-    to avoid matching version numbers like '2.0' or far-future dates.
+def _infer_experience_years(experience_text: str) -> int:   # [FIX-5]
+    """Estimate work experience span from experience section text ONLY.
+
+    [FIX-5] Takes experience_text, NOT full resume_text.
+    Passing full resume text caused education date ranges (e.g. B.Tech 2019-2023)
+    to inflate the inferred career span — same bug fixed in extraction.py.
+
+    Handles "Present"/"Current" by substituting _CURRENT_YEAR as end year.
+    Returns 0 if fewer than two distinct year mentions are found.
     """
-    years = [int(y) for y in re.findall(r"\b(19[89]\d|20[012]\d)\b", resume_text)]
-    return max(years) - min(years) if len(years) >= 2 else 0
+    text_lower = experience_text.lower()
+    has_present = any(
+        w in text_lower for w in ("present", "current", "ongoing")
+    )
+    years = [int(y) for y in re.findall(r"\b(19[89]\d|20[012]\d)\b", experience_text)]
+    if not years:
+        return 0
+    max_year = _CURRENT_YEAR if has_present else max(years)
+    return max_year - min(years)
 
 
 def analyze_yoe(
     structured: StructuredJD,
     resume_text: str,
     config: AnalyzerConfig = DEFAULT_CONFIG,
+    experience_text: Optional[str] = None,   # [FIX-5]
 ) -> YOEResult:
-    """Compare JD years-of-experience requirements against the resume.
-
-    Extraction (JD side):
-      Scans the required section first (where YOE usually lives), then deduplicates
-      requirements by a (years, context) key.
-
-    Matching (resume side):
-      - Specific contexts (e.g. 'in Python'): looks for explicit claims like
-        '4 years of experience in Python' in the resume and compares directly.
-      - Generic contexts (e.g. 'in a similar role'): falls back to total career
-        span inferred from the earliest/latest year mentions.
-
-    Partial match: if resume years are between yoe_partial_threshold x required
-    and the full requirement, the entry is marked partial rather than unsatisfied.
-
-    Fallback for specific contexts with no explicit claim:
-      If the context keyword appears in the resume and career span meets the
-      requirement, it's marked partial (candidate has exposure but didn't quantify).
+    """Compare JD YOE requirements against the resume.
 
     Args:
-        structured:  Parsed JD containing separated required text.
-        resume_text: Raw resume text (not pre-parsed).
-        config:      Threshold configuration for partial-match classification.
-
-    Returns:
-        YOEResult with all requirements bucketed into satisfied/partial/unsatisfied.
+        structured:       Parsed JD.
+        resume_text:      Full resume text (for explicit YOE claim scanning).
+        config:           Scoring configuration.
+        experience_text:  Work experience section text only [FIX-5].
+                          If provided, used for date-span inference instead of
+                          full resume text. Pass sectioned_resume.section_text(
+                          ResumeSection.EXPERIENCE) when available.
+                          Falls back to full resume text if not provided.
     """
-    # Scan required section first (highest signal), then full JD for completeness
+    # Extract JD requirements (required section first, then full JD for completeness)
     yoe_source = structured.required_text + " " + structured.full_jd_text
     reqs: List[YOERequirement] = []
-    seen: Set[str] = set()  # Dedup key: "years:context"
+    seen: Set[str] = set()
 
     for m in _YOE_JD_RE.finditer(yoe_source):
         years = int(m.group(1))
-        ctx = (m.group(2) or "").strip().lower()
-        raw = m.group(0).strip()
-        key = f"{years}:{ctx}"
+        ctx   = (m.group(2) or "").strip().lower()
+        raw   = m.group(0).strip()
+        key   = f"{years}:{ctx}"
         if years > 0 and key not in seen:
             seen.add(key)
             reqs.append(YOERequirement(
@@ -859,18 +843,19 @@ def analyze_yoe(
                 is_generic=_is_generic_context(ctx),
             ))
 
-    # Build a map of explicitly claimed years per context from the resume
+    # Build map of explicit YOE claims from full resume text
     resume_lower = resume_text.lower()
-    resume_claims: Dict[str, int] = {}  # {context_string: max_claimed_years}
+    resume_claims: Dict[str, int] = {}
     for m in _YOE_RESUME_RE.finditer(resume_lower):
         years = int(m.group(1))
-        ctx = (m.group(2) or "").strip().lower()
+        ctx   = (m.group(2) or "").strip().lower()
         if ctx:
-            # Keep the highest claim if the same context appears multiple times
             resume_claims[ctx] = max(resume_claims.get(ctx, 0), years)
 
-    # Infer overall career span as a fallback for generic / unclaimed requirements
-    date_years = _infer_experience_years(resume_text)
+    # [FIX-5] Use experience section text for date-span inference if provided
+    infer_text = experience_text if experience_text else resume_text
+    date_years = _infer_experience_years(infer_text)
+
     satisfied, unsatisfied, partial = [], [], []
 
     for req in reqs:
@@ -883,23 +868,18 @@ def analyze_yoe(
                 unsatisfied.append(req)
             continue
 
-        # Specific context: find the best explicit claim with overlapping context
-        # (substring match in both directions handles minor wording variations)
         best = max(
             (v for k, v in resume_claims.items()
              if req.context in k or k in req.context),
             default=0,
         )
-        # Check if the context keyword even appears anywhere in the resume text
         ctx_present = req.context.split()[0] in resume_lower if req.context else False
 
         if best >= req.years:
             satisfied.append(req)
         elif best >= req.years * config.yoe_partial_threshold:
-            # Resume claims years explicitly but falls slightly short
             partial.append((req, best))
         elif ctx_present and date_years >= req.years:
-            # Context mentioned, no explicit years, but overall career span qualifies
             partial.append((req, date_years))
         else:
             unsatisfied.append(req)
@@ -1049,129 +1029,143 @@ def analyze_gap(
     config: AnalyzerConfig = DEFAULT_CONFIG,
     embed_fn: Optional[Callable] = None,
     use_semantic: bool = True,
+    experience_text: Optional[str] = None,   # [FIX-5]
 ) -> GapAnalysisResult:
-    """Core gap analysis pipeline. Accepts a pre-parsed StructuredJD, not raw text.
+    """Core gap analysis. Accepts a pre-parsed StructuredJD, not raw text.
 
-    The function is deliberately format-agnostic: all section detection and JD
-    parsing happened upstream in jd_structurer.py. This function only cares
-    about *what* is required/preferred, not *how* the JD was formatted.
-
-    The 7-stage pipeline:
-      1. Build weighted term map from the JD (phrases + importance weights).
-      2. Extract and deduplicate phrases from the resume.
-      3. Exact matching - simple substring scan, O(n) per term.
-      4. Two-stage semantic matching (BM25 -> embeddings) for unmatched terms.
-      5. Compute weighted coverage score.
-      6. Classify missing terms: required_missing, preferred_missing, critical.
-      7. YOE sub-analysis.
+    Format-agnostic — all section detection and JD parsing happened upstream
+    in jd_structurer.py. This function only cares about what is required/preferred.
 
     Args:
-        structured:   Output of jd_structurer.structure_jd(). Contains
-                      separated required/preferred text and the full JD.
-        resume_text:  Raw resume text. Not pre-parsed; extract_phrases handles it.
-        config:       All scoring thresholds and weights. Defaults work well;
-                      pass a custom AnalyzerConfig for A/B testing.
-        embed_fn:     Optional drop-in replacement for the SentenceTransformer
-                      encoder. Useful for unit tests or alternative models.
-        use_semantic: Set to False to skip embedding (faster; use for batch
-                      pre-screening where exact match coverage is sufficient).
-
-    Returns:
-        GapAnalysisResult containing the coverage score, match lists, missing
-        terms, critical gaps, and YOE analysis.
+        structured:       Output of jd_structurer.structure_jd().
+        resume_text:      Raw resume text.
+        config:           Scoring thresholds and weights.
+        embed_fn:         Optional custom embedding function (for testing).
+        use_semantic:     Set False to skip embedding (faster bulk screening).
+        experience_text:  Work experience section text for YOE inference [FIX-5].
+                          Pass sectioned_resume.section_text(ResumeSection.EXPERIENCE)
+                          from ats_scorer when available. Prevents education dates
+                          inflating YOE. Falls back to full resume if None.
     """
-    # Stage 1: Build weighted term map
-    # Each phrase gets a weight reflecting how important it is to the employer.
-    # required_terms is the subset that must be exact-matched for ATS compliance.
-    jd_weights, required_terms = build_weighted_terms(structured, config)
-    jd_terms = list(jd_weights.keys())
+    # When the pipeline ran LLM skill extraction, structured.skills contains
+    # pre-classified {"name", "required", "gap"} entries. Use those directly —
+    # they are clean skill entities with no noise words. Fall back to NLP
+    # extraction (stages 1-4) only when skills are not available.
+    if structured.skills:
+        jd_weights: Dict[str, float] = {}
+        required_terms: Set[str] = set()
+        exact_matches: List[str] = []
+        semantic_matches: List[SemanticMatch] = []
+        still_missing: List[str] = []
 
-    # Stage 2: Extract resume phrases
-    # Mirror the JD phrase extraction on the resume so both sides use the
-    # same representation before comparison.
-    resume_phrases = extract_phrases(resume_text, config)
-    resume_phrases = deduplicate_subphrases(resume_phrases)
-    resume_lower = resume_text.lower()
+        for skill in structured.skills:
+            name     = skill["name"]
+            name_lc  = name.lower()
+            is_req   = skill["required"]
+            gap      = skill.get("gap", "missing")
 
-    # Stage 3: Exact matching
-    # Simple substring check - fast O(n) scan. This catches verbatim keyword
-    # matches which ATS systems rely on. No normalisation beyond lowercasing.
-    exact_matches: List[str] = []
-    unmatched: List[str] = []
-    for term in jd_terms:
-        if term in resume_lower:
-            exact_matches.append(term)
-        else:
-            unmatched.append(term)
+            weight = config.required_weight if is_req else config.preferred_weight
+            jd_weights[name_lc] = weight
+            if is_req:
+                required_terms.add(name_lc)
 
-    # Stage 4: Two-stage semantic matching (BM25 -> embeddings)
-    # Only run for terms that had no exact match. use_semantic=False bypasses
-    # this entirely for speed (e.g. bulk pre-screening).
-    embedding_calls = 0
-    semantic_matches: List[SemanticMatch] = []
-    still_missing = unmatched
+            if gap == "demonstrated":
+                exact_matches.append(name_lc)
+            elif gap == "partial":
+                semantic_matches.append(SemanticMatch(
+                    jd_term=name_lc,
+                    resume_phrase=name_lc,
+                    similarity=0.5,
+                    credit_fraction=config.semantic_credit_preferred,
+                ))
+            else:
+                still_missing.append(name)  # keep original case for display
 
-    if use_semantic and unmatched:
-        semantic_matches, still_missing = two_stage_semantic_match(
-            unmatched, resume_phrases, required_terms, config, embed_fn
-        )
-        # Count unique texts passed to the encoder for telemetry/billing tracking
-        cands = bm25_candidates(unmatched, resume_phrases, top_k=config.bm25_top_k)
-        embedding_calls = len({t for t in cands} | {p for ps in cands.values() for p in ps})
+        embedding_calls = 0  # no embedding calls made — LLM handled matching
 
-    # Stage 5: Coverage score
-    # Weighted sum: exact matches get full credit; semantic matches get partial
-    # credit (credit_fraction, which is 0 for required terms).
-    # Formula: coverage = (matched_weight / total_weight) * 100
-    total_weight = sum(jd_weights.values())
+    else:
+        # Stage 1: Build weighted term map — per-section extraction [FIX-4]
+        jd_weights, required_terms = build_weighted_terms(structured, config)
+        jd_terms = list(jd_weights.keys())
+
+        # Stage 2: Extract resume phrases
+        resume_phrases = deduplicate_subphrases(extract_phrases(resume_text, config))
+        resume_lower   = resume_text.lower()
+
+        # Stage 3: Exact matching (lazy import avoids circular dependency with ats_scorer)
+        from .ats_scorer import _get_all_variants, ATSConfig  # noqa: PLC0415
+        _ats_cfg = ATSConfig()
+        exact_matches: List[str] = []
+        unmatched: List[str] = []
+        for term in jd_terms:
+            variants = _get_all_variants(term, _ats_cfg)
+            if any(v in resume_lower for v in variants):
+                exact_matches.append(term)
+            else:
+                unmatched.append(term)
+
+        # Stage 4: Two-stage semantic matching — embedding_calls returned directly [FIX-7]
+        embedding_calls = 0
+        semantic_matches: List[SemanticMatch] = []
+        still_missing = unmatched
+
+        if use_semantic and unmatched:
+            # [FIX-7] Unpack three values — no second BM25 pass needed
+            semantic_matches, still_missing, embedding_calls = two_stage_semantic_match(
+                unmatched, resume_phrases, required_terms, config, embed_fn
+            )
+
+    # Stage 5: Weighted coverage score
+    total_weight   = sum(jd_weights.values())
     matched_weight = sum(jd_weights[t] for t in exact_matches)
     for sm in semantic_matches:
-        # Semantic credit is already scaled by similarity inside SemanticMatch
         matched_weight += jd_weights.get(sm.jd_term, 1.0) * sm.credit_fraction
-    coverage = round((matched_weight / total_weight) * 100, 2) if total_weight > 0 else 100.0
+    coverage = round(
+        (matched_weight / total_weight) * 100, 2
+    ) if total_weight > 0 else 100.0
 
-    # Stage 6: Classify missing terms by importance
-    # Using pre-lowercased section views avoids repeated .lower() calls below.
-    full_text_lower = structured.full_jd_text.lower()
-    required_text_lower = structured.required_text.lower()
+    # Stage 6: Classify missing terms
+    full_text_lower      = structured.full_jd_text.lower()
+    required_text_lower  = structured.required_text.lower()
     preferred_text_lower = structured.preferred_text.lower()
+    title_lower          = structured.title.lower()
 
-    # required_missing: terms the employer flagged as non-negotiable for ATS
-    required_missing = [t for t in still_missing if t in required_text_lower]
-    # preferred_missing: 'nice to have' terms NOT already in the required section
-    preferred_missing = [t for t in still_missing
-                         if t in preferred_text_lower and t not in required_text_lower]
+    if structured.skills:
+        # LLM path: use required/preferred flags from the skill dict directly
+        skill_req_set  = {s["name"].lower() for s in structured.skills if s["required"]}
+        skill_pref_set = {s["name"].lower() for s in structured.skills if not s["required"]}
+        required_missing  = [t for t in still_missing if t.lower() in skill_req_set]
+        preferred_missing = [t for t in still_missing if t.lower() in skill_pref_set]
+        critical_missing  = required_missing  # all required gaps are critical by definition
+    else:
+        required_missing  = [t for t in still_missing if t in required_text_lower]
+        preferred_missing = [
+            t for t in still_missing
+            if t in preferred_text_lower and t not in required_text_lower
+        ]
 
-    # Critical missing: union of three high-signal criteria —
-    #   in the required section, appears >= threshold times, or in the job title.
-    # Sorted so required-section terms float to the top; within each bucket,
-    # higher frequency = more urgency to add to the resume.
-    title_lower = structured.title.lower()
+        def is_critical(term: str) -> bool:
+            freq = len(re.findall(re.escape(term), full_text_lower))
+            return (
+                term in required_terms
+                or freq >= config.critical_freq_threshold
+                or term in title_lower
+            )
 
-    def is_critical(term: str) -> bool:
-        freq = len(re.findall(re.escape(term), full_text_lower))
-        return (
-            term in required_terms
-            or freq >= config.critical_freq_threshold
-            or term in title_lower
+        critical_missing = sorted(
+            [t for t in still_missing if is_critical(t)],
+            key=lambda t: (
+                t not in required_terms,
+                -len(re.findall(re.escape(t), full_text_lower)),
+            ),
         )
 
-    critical_missing = sorted(
-        [t for t in still_missing if is_critical(t)],
-        key=lambda t: (
-            # False < True, so required terms sort before non-required
-            t not in required_terms,
-            # Negate so higher-frequency terms sort earlier within the same bucket
-            -len(re.findall(re.escape(t), full_text_lower)),
-        ),
-    )
-
-    # Stage 7: YOE analysis — runs independently of keyword matching
-    yoe = analyze_yoe(structured, resume_text, config)
+    # Stage 7: YOE analysis — passes experience_text for accurate inference [FIX-5]
+    yoe = analyze_yoe(structured, resume_text, config, experience_text)
 
     return GapAnalysisResult(
         coverage_score=coverage,
-        total_concepts=len(jd_terms),
+        total_concepts=len(jd_weights),
         matched_weight=round(matched_weight, 2),
         total_weight=round(total_weight, 2),
         exact_matches=exact_matches,

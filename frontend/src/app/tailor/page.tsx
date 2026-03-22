@@ -20,6 +20,7 @@ import {
   Shield,
   Layers,
   BarChart,
+  BarChart2,
   TrendingUp,
   Target
 } from "lucide-react";
@@ -27,6 +28,7 @@ import { cn } from "@/lib/utils";
 import { useJobs } from "@/hooks/useJobs";
 import { useTailorResume, useSaveTailoredBullets } from "@/hooks/useTailor";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 // ── UI primitives ────────────────────────────────────────────────────────────
 const C = {
@@ -171,8 +173,13 @@ function DiffCard({ change, accepted, onToggle, blockType, violationIssues }: an
 const AnalyticsSummary = ({ job }: { job: any }) => {
   const isErrorReason = (r?: string | null) => !!r?.startsWith("Error");
   const tailoredReason = isErrorReason(job.tailored_match_reason) ? null : job.tailored_match_reason;
-  const tailoredScore = isErrorReason(job.tailored_match_reason) ? null : job.tailored_match_score;
-  const scoreDiff = (tailoredScore || 0) - (job.match_score || 0);
+
+  // Use ATS before/after from analytics report for the comparison (deterministic keyword scoring).
+  // Fall back to match_score / tailored_match_score if analytics is not available.
+  const scoreDelta = job.analytics?.scoreDelta;
+  const atsBefore = scoreDelta?.atsBefore != null ? Math.round(scoreDelta.atsBefore) : job.match_score ?? 0;
+  const atsAfter = scoreDelta?.atsAfter != null ? Math.round(scoreDelta.atsAfter) : job.tailored_match_score ?? atsBefore;
+  const scoreDiff = atsAfter - atsBefore;
   const numChanges = job.tailored_bullets?.length || 0;
   
   // Calculate unique keywords added
@@ -198,7 +205,7 @@ const AnalyticsSummary = ({ job }: { job: any }) => {
           
           <div className="flex items-end gap-3">
             <span className="text-4xl font-black text-zinc-100 tracking-tighter">
-              {tailoredScore || job.match_score}%
+              {atsAfter}%
             </span>
             {scoreDiff > 0 && (
               <span className="text-emerald-400 text-xs font-black mb-1 flex items-center">
@@ -207,15 +214,15 @@ const AnalyticsSummary = ({ job }: { job: any }) => {
               </span>
             )}
           </div>
-          
+
           <div className="mt-4 pt-4 border-t border-zinc-800/50">
             <div className="flex justify-between text-[9px] font-bold text-zinc-500 uppercase tracking-wider mb-2">
-              <span>Original: {job.match_score}%</span>
-              <span>Tailored: {tailoredScore || job.match_score}%</span>
+              <span>Original: {atsBefore}%</span>
+              <span>Tailored: {atsAfter}%</span>
             </div>
             <div className="h-1.5 bg-zinc-900 rounded-full overflow-hidden flex">
-              <div className="h-full bg-zinc-700" style={{ width: `${job.match_score}%` }} />
-              <div className="h-full bg-indigo-500" style={{ width: `${scoreDiff}%` }} />
+              <div className="h-full bg-zinc-700" style={{ width: `${atsBefore}%` }} />
+              <div className="h-full bg-indigo-500" style={{ width: `${Math.max(0, scoreDiff)}%` }} />
             </div>
           </div>
         </div>
@@ -283,12 +290,131 @@ const AnalyticsSummary = ({ job }: { job: any }) => {
   );
 };
 
-export default function TailorPage() {
-  const searchParams = useSearchParams();
-  const queryJobId = searchParams.get("jobId");
-  
+// ── Tailoring Job List ────────────────────────────────────────────────────────
+function TailoringList() {
+  const router = useRouter();
+  const { data: jobs = [], isLoading } = useJobs();
+
+  const tailoringJobs = jobs
+    .filter(j => j.status === "Tailoring" || j.status === "Tailored")
+    .sort((a, b) => {
+      // In-progress first, then by date desc
+      if (a.status === "Tailoring" && b.status !== "Tailoring") return -1;
+      if (b.status === "Tailoring" && a.status !== "Tailoring") return 1;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+
+  return (
+    <div className="flex-1 flex flex-col overflow-hidden bg-[#0B0B0C]">
+      <header className="px-8 py-4 border-b border-zinc-800 bg-[#131315] flex items-center gap-4">
+        <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0">
+          <Sparkles size={18} />
+        </div>
+        <div>
+          <h1 className="text-lg font-black tracking-tight text-zinc-100">Tailoring Pipeline</h1>
+          <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-0.5">All tailoring sessions</p>
+        </div>
+      </header>
+
+      <div className="flex-1 overflow-y-auto p-8">
+        <div className="max-w-3xl mx-auto space-y-3">
+          {isLoading && (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 size={24} className="animate-spin text-zinc-600" />
+            </div>
+          )}
+
+          {!isLoading && tailoringJobs.length === 0 && (
+            <div className="bg-[#131315] border border-zinc-800 rounded-3xl p-20 flex flex-col items-center justify-center text-center">
+              <Sparkles size={48} className="mb-6 text-zinc-700" />
+              <p className="text-xs font-black uppercase tracking-[0.3em] text-zinc-500">No tailoring sessions yet</p>
+              <p className="text-[11px] text-zinc-600 mt-2">Open a job and click "Tailor Resume" to start.</p>
+            </div>
+          )}
+
+          {tailoringJobs.map(job => {
+            const isTailoring = job.status === "Tailoring";
+            const scoreDelta = job.analytics?.scoreDelta;
+            const atsBefore = scoreDelta?.atsBefore != null ? Math.round(scoreDelta.atsBefore) : job.match_score ?? null;
+            const atsAfter  = scoreDelta?.atsAfter  != null ? Math.round(scoreDelta.atsAfter)  : job.tailored_match_score ?? null;
+            const diff = atsBefore != null && atsAfter != null ? atsAfter - atsBefore : null;
+
+            return (
+              <button
+                key={job.id}
+                onClick={() => router.push(`/tailor?jobId=${job.id}`)}
+                className="w-full text-left bg-[#131315] border border-zinc-800 hover:border-indigo-500/40 hover:bg-indigo-500/5 rounded-2xl p-5 transition-all duration-200 group flex items-center gap-5"
+              >
+                {/* Status indicator */}
+                <div className={cn(
+                  "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border",
+                  isTailoring
+                    ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-400"
+                    : "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                )}>
+                  {isTailoring
+                    ? <Loader2 size={16} className="animate-spin" />
+                    : <CheckCircle2 size={16} />}
+                </div>
+
+                {/* Job info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={cn(
+                      "text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border",
+                      isTailoring
+                        ? "bg-indigo-500/10 border-indigo-500/20 text-indigo-400"
+                        : "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                    )}>
+                      {isTailoring ? "In Progress" : "Tailored"}
+                    </span>
+                    <span className="text-[9px] text-zinc-600 font-mono">
+                      {new Date(job.created_at).toLocaleDateString("en", { month: "short", day: "numeric" })}
+                    </span>
+                  </div>
+
+                  <p className="text-sm font-black text-zinc-100 truncate group-hover:text-indigo-300 transition-colors">
+                    {job.job_title}
+                  </p>
+                  <p className="text-[11px] text-zinc-500 truncate mt-0.5">{job.company_name}</p>
+
+                  {isTailoring && job.sub_status && (
+                    <p className="text-[10px] text-indigo-400/70 font-medium mt-1.5 truncate">
+                      {job.sub_status}
+                    </p>
+                  )}
+                </div>
+
+                {/* Score */}
+                {!isTailoring && atsBefore != null && atsAfter != null && (
+                  <div className="text-right shrink-0">
+                    <div className="flex items-center gap-1.5 justify-end">
+                      <span className="text-[11px] text-zinc-600 font-bold">{atsBefore}%</span>
+                      <ChevronRight size={10} className="text-zinc-700" />
+                      <span className="text-sm font-black text-zinc-100">{atsAfter}%</span>
+                    </div>
+                    {diff !== null && diff > 0 && (
+                      <span className="text-[10px] font-black text-emerald-400">+{diff}%</span>
+                    )}
+                  </div>
+                )}
+
+                <ChevronRight size={16} className="text-zinc-700 group-hover:text-indigo-400 transition-colors shrink-0" />
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TailoringPipelineView({ jobId }: { jobId: string }) {
+  const router = useRouter();
+  const queryJobId = jobId;
+
   const { data: jobs = [] } = useJobs();
-  const [selectedJobId, setSelectedJobId] = useState<number | null>(queryJobId ? parseInt(queryJobId) : null);
+  const [selectedJobId, setSelectedJobId] = useState<number | null>(parseInt(jobId));
   const [results, setResults] = useState<any>(null);
   const [editableBullets, setEditableBullets] = useState<any[]>([]);
   const [logs, setLogs] = useState<any[]>([]);
@@ -380,7 +506,7 @@ export default function TailorPage() {
     <div className="flex-1 flex flex-col overflow-hidden bg-[#0B0B0C]">
       <header className="px-8 py-4 border-b border-zinc-800 flex items-center justify-between bg-[#131315]">
         <div className="flex items-center gap-4">
-          <Link href="/jobs" className="p-2 hover:bg-zinc-800 rounded-xl text-zinc-500 transition-colors">
+          <Link href="/tailor" className="p-2 hover:bg-zinc-800 rounded-xl text-zinc-500 transition-colors">
             <ArrowLeft size={20} />
           </Link>
           <div>
@@ -410,7 +536,16 @@ export default function TailorPage() {
             <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest bg-amber-400/10 px-3 py-1.5 rounded-full border border-amber-400/20">
               {acceptedCount} Changes Accepted
             </span>
-            <button 
+            {currentJob?.analytics && (
+              <button
+                onClick={() => router.push(`/jobs/${selectedJobId}/analytics`)}
+                className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl text-xs font-bold transition-all border border-zinc-700 active:scale-95"
+              >
+                <BarChart2 size={14} />
+                Detailed Analytics
+              </button>
+            )}
+            <button
               onClick={handleExport}
               className="flex items-center gap-2 px-5 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-indigo-500/20 active:scale-95"
             >
@@ -656,12 +791,6 @@ export default function TailorPage() {
               </div>
             )}
 
-            {!selectedJobId && (
-              <div className="bg-[#131315] border border-zinc-800 rounded-3xl p-20 flex flex-col items-center justify-center text-center opacity-50 grayscale">
-                <Search size={48} className="mb-6 text-zinc-700" />
-                <p className="text-xs font-black uppercase tracking-[0.3em] text-zinc-500">Pipeline Idle — No Job Loaded</p>
-              </div>
-            )}
           </div>
 
         </div>
@@ -689,4 +818,12 @@ export default function TailorPage() {
       `}</style>
     </div>
   );
+}
+
+export default function TailorPage() {
+  const searchParams = useSearchParams();
+  const jobId = searchParams.get("jobId");
+
+  if (!jobId) return <TailoringList />;
+  return <TailoringPipelineView jobId={jobId} />;
 }

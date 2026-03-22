@@ -28,6 +28,29 @@ def get_profile(session: Session = Depends(get_session)):
     return profile
 
 
+def _blocks_to_paragraphs(blocks: list) -> list:
+    """Transform internal block AST to the frontend paragraph/runs shape."""
+    paragraphs = []
+    for block in blocks:
+        runs = []
+        for run in block["runs"]:
+            runs.append({
+                "id": run["id"],
+                "text": run["text"],
+                "bold": run["bold"],
+                "italic": run["italic"],
+                "underline": run.get("underline", False),
+                "fontSize": run.get("fontSize"),
+            })
+        paragraphs.append({
+            "id": block["id"],
+            "style": block["type"],   # "h1" | "h2" | "h3" | "bullet" | "paragraph"
+            "ilvl": block.get("ilvl", 0),
+            "runs": runs,
+        })
+    return paragraphs
+
+
 @router.get("/resume-ast")
 def get_resume_ast(version_id: int = None, session: Session = Depends(get_session)):
     if version_id:
@@ -38,7 +61,8 @@ def get_resume_ast(version_id: int = None, session: Session = Depends(get_sessio
         ).first()
 
     if version and version.file_path and os.path.exists(version.file_path):
-        return parse_docx_to_block_ast(version.file_path)
+        ast = parse_docx_to_block_ast(version.file_path)
+        return {"paragraphs": _blocks_to_paragraphs(ast["blocks"])}
     return {"paragraphs": []}
 
 
@@ -79,6 +103,14 @@ def save_resume_ast(data: dict, session: Session = Depends(get_session)):
         is_current=True,
     )
     session.add(new_v)
+
+    # Keep profile.resume_path in sync so tailoring always picks up the latest file
+    profile = session.exec(select(UserProfile)).first()
+    if profile:
+        profile.resume_path = output_path
+        profile.skill_whitelist = list(tokenize(new_text))
+        session.add(profile)
+
     session.commit()
     session.refresh(new_v)
     return new_v
@@ -128,12 +160,29 @@ def save_resume_version(data: dict, session: Session = Depends(get_session)):
         v.is_current = False
         session.add(v)
 
-    # 2. Add new one
+    # 2. Write a .docx file so the tailoring pipeline has a file to parse.
+    #    Without this, file_path stays None and tailoring always falls back to
+    #    the original upload, ignoring any text edits the user made.
     timestamp = datetime.now().strftime("%b %d, %H:%M")
+    new_filename = f"master_resume_v_{int(time.time())}.docx"
+    output_path = os.path.join(UPLOAD_DIR, new_filename)
+    save_text_to_docx(content, output_path)
+
     new_v = ResumeVersion(
-        version_label=f"Edit {timestamp}", content=content, is_current=True
+        version_label=f"Edit {timestamp}",
+        content=content,
+        file_path=output_path,
+        is_current=True,
     )
     session.add(new_v)
+
+    # 3. Keep profile.resume_path in sync
+    profile = session.exec(select(UserProfile)).first()
+    if profile:
+        profile.resume_path = output_path
+        profile.skill_whitelist = list(tokenize(content))
+        session.add(profile)
+
     session.commit()
     session.refresh(new_v)
     return new_v

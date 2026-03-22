@@ -16,7 +16,7 @@ class AgentState(TypedDict):
     modifications: Dict[str, str]  # { block_id: newText }
     final_resume_path: Optional[str]
     status: str
-    # Set by rewrite_bullets; reused by validate_changes + generate_analytics
+    # Set by analyze_gap; reused by rewrite_bullets, validate_changes + generate_analytics
     block_ast: Optional[Dict]
     # Set by analyze_gap; consumed by generate_analytics for ATS scoring
     structured_jd: Optional[Any]

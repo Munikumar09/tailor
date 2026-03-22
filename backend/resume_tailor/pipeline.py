@@ -52,6 +52,7 @@ from .keyword_gap_analyzer import (
     analyze_gap,
     preload_models,
 )
+from .skill_extractor import extract_jd_skills, analyze_skill_gap
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -83,6 +84,7 @@ def analyze(
     jd_text: str,
     resume_text: str,
     config: PipelineConfig = DEFAULT_PIPELINE_CONFIG,
+    experience_text: Optional[str] = None,
 ) -> GapAnalysisResult:
     """
     Full pipeline: raw JD + raw resume → GapAnalysisResult.
@@ -115,6 +117,35 @@ def analyze(
         f"Preferred: {len(structured.preferred)} items"
     )
 
+    # Step 1b: LLM skill extraction — replaces NLP phrase extraction in analyze_gap.
+    # extract_jd_skills asks the LLM for clean skill entities (no "familiarity with",
+    # no "role", no "degree"). analyze_skill_gap classifies each against the resume.
+    # On failure, structured.skills stays None and analyze_gap falls back to spaCy.
+    logger.info("Step 1b: Extracting skills via LLM...")
+    skills = extract_jd_skills(structured, config.llm)
+    if skills:
+        gap_result = analyze_skill_gap(skills, resume_text, config.llm)
+        if gap_result:
+            # Merge gap classification into each skill dict
+            gap_map: dict = {}
+            for name in gap_result["demonstrated"]:
+                gap_map[name.lower()] = "demonstrated"
+            for name in gap_result["partial"]:
+                gap_map[name.lower()] = "partial"
+            for name in gap_result["missing"]:
+                gap_map[name.lower()] = "missing"
+            for skill in skills:
+                skill["gap"] = gap_map.get(skill["name"].lower(), "missing")
+            structured.skills = skills
+            logger.info(
+                "Step 1b: LLM skill extraction complete — %d skills tagged with gap status",
+                len(skills),
+            )
+        else:
+            logger.warning("Step 1b: analyze_skill_gap failed — falling back to NLP extraction")
+    else:
+        logger.warning("Step 1b: extract_jd_skills failed — falling back to NLP extraction")
+
     # Step 2: Analyze gap
     logger.info("Step 2: Analyzing keyword gap...")
     result = analyze_gap(
@@ -122,6 +153,7 @@ def analyze(
         resume_text=resume_text,
         config=config.analyzer,
         use_semantic=config.use_semantic,
+        experience_text=experience_text,
     )
 
     total_ms = int((time.perf_counter() - t_start) * 1000)

@@ -48,14 +48,21 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from datetime import datetime
 from enum import Enum
 from typing import Dict, List, Optional, Set, Tuple
-from utils.logger import get_logger
-
-logger = get_logger(__name__)
 
 from .jd_structurer import StructuredJD
+from .keyword_gap_analyzer import extract_phrases, deduplicate_subphrases
+from collections import defaultdict
+from .extraction import (
+    CandidateFacts,
+    JDRequirements,
+    DEGREE_LEVELS      as _DEGREE_LEVELS,
+    DEGREE_LEVEL_NAMES as _DEGREE_LEVEL_NAMES,
+    extract_candidate_facts,
+    extract_jd_requirements,
+)
+from .types import ResumeSection
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -99,18 +106,6 @@ class ATSConfig:
 DEFAULT_CONFIG = ATSConfig()
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-#  RESUME SECTION ENUM
-# ═══════════════════════════════════════════════════════════════════════════════
-
-class ResumeSection(Enum):
-    SKILLS       = "skills"
-    SUMMARY      = "summary"
-    EXPERIENCE   = "experience"
-    EDUCATION    = "education"
-    PROJECTS     = "projects"
-    CERTIFICATIONS = "certifications"
-    OTHER        = "other"
 
 
 # Section heading keywords for classification
@@ -188,7 +183,7 @@ _DATE_RE = re.compile(
     r"\b(20[0-2]\d|19[89]\d)\b"         # 4-digit years: 1980–2029
 )
 
-_CURRENT_YEAR = datetime.now().year   # fixed reference — update annually or use datetime.now().year
+_CURRENT_YEAR = 2025   # fixed reference — update annually or use datetime.now().year
 
 # Words indicating "present / ongoing" — used to assign current year
 _PRESENT_WORDS = {"present", "current", "now", "today", "ongoing", "–present", "-present"}
@@ -287,8 +282,6 @@ def parse_resume_from_ast(block_ast: dict) -> SectionedResume:
             original_ast_block=block,
         ))
 
-    # Organise by section
-    from collections import defaultdict
     by_section: Dict[ResumeSection, List[ResumeBlock]] = defaultdict(list)
     for rb in enriched:
         by_section[rb.section].append(rb)
@@ -533,6 +526,23 @@ def _normalise_term(term: str) -> str:
     return t
 
 
+def _get_verb_inflections(word: str) -> Set[str]:
+    """Return common verb inflections for a single word (gerund, past, base, -s)."""
+    w = word
+    result = {w}
+    if w.endswith("ing") and len(w) > 4:
+        base_e = w[:-3] + "e"   # tuning → tune
+        base   = w[:-3]          # tuning → tun
+        result |= {base_e, base_e + "d", base_e + "s", base + "ed"}
+    elif w.endswith("ed") and len(w) > 3:
+        base_e = w[:-1]          # tuned → tune
+        result |= {base_e, base_e + "s", base_e[:-1] + "ing"}
+    elif w.endswith("e") and len(w) > 2:
+        base = w[:-1]            # tune → tun
+        result |= {w + "d", w + "s", base + "ing"}
+    return result
+
+
 def _get_all_variants(term: str, config: ATSConfig) -> Set[str]:
     """
     Build the full set of acceptable near-exact variants for a term.
@@ -559,6 +569,16 @@ def _get_all_variants(term: str, config: ATSConfig) -> Set[str]:
         # Also add plural of base form
         if not normalised.endswith("s"):
             variants.add(normalised + "s")
+
+    # Verb inflection variants for compound/hyphenated verbs (e.g. fine-tune ↔ fine-tuning)
+    parts = normalised.split()
+    if len(parts) >= 2:
+        last = parts[-1]
+        prefix = " ".join(parts[:-1])
+        for infl in _get_verb_inflections(last):
+            if infl != last:
+                variants.add(f"{prefix} {infl}")
+                variants.add(f"{prefix}-{infl}")
 
     return variants
 
@@ -591,9 +611,27 @@ def _term_present_in_block(
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+#  CANDIDATE FACTS & JD REQUIREMENTS — delegated to extraction.py
+#
+#  All extraction logic lives in extraction.py:
+#    Layer A — Groq primary (llama-3.1-8b-instant)
+#    Layer B — Deterministic validator
+#    Layer C — Groq escalation (llama-3.3-70b-versatile) on critical failures
+#    Layer D — Section-aware regex fallback when Groq is unavailable
+#
+#  CandidateFacts and JDRequirements are re-exported from extraction.py
+#  so all downstream code (knockout evaluator, analytics) can import from
+#  either module without caring where the implementation lives.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 #  SUB-SYSTEM 2 — KNOCKOUT EVALUATOR
 #  Binary pass/fail. Runs before scoring.
 #  If any knockout fails, final ATS score is 0.
+#  Consumes CandidateFacts and JDRequirements — no regex inside this function.
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @dataclass
@@ -602,110 +640,43 @@ class KnockoutResult:
     checks: List[dict]                  # detail of each check
 
 
-_DEGREE_LEVELS = {
-    "phd":        5, "doctorate":  5,
-    "masters":    4, "master":     4, "msc": 4, "ms": 4, "mba": 4, "m.s": 4,
-    "bachelors":  3, "bachelor":   3, "bsc": 3, "bs": 3, "b.s": 3, "be": 3,
-                                        "b.e": 3, "btech": 3, "b.tech": 3,
-    "associate":  2, "diploma":    2,
-    "any":        1, "graduate":   1,
-}
-
-_DEGREE_RE = re.compile(
-    r"\b(phd|ph\.d|doctorate|master(?:s)?|m\.?sc?|mba|m\.?s\.?|"
-    r"bachelor(?:s)?|b\.?sc?|b\.?s\.?|be|b\.?e|btech|b\.?tech|"
-    r"associate|diploma|graduate)\b",
-    re.IGNORECASE,
-)
-
-_YOE_JD_RE = re.compile(
-    r"(\d+)\+?\s*(?:to\s*\d+\s*)?(?:years?|yrs?)"
-    r"(?:\s+(?:of\s+)?(?:experience|exp|work))?",
-    re.IGNORECASE,
-)
-
-
-def _extract_min_yoe_from_jd(structured: StructuredJD) -> Optional[int]:
-    """Find the minimum years-of-experience requirement in required section."""
-    required_text = structured.required_text
-    matches = _YOE_JD_RE.findall(required_text)
-    years = [int(m) for m in matches if int(m) > 0]
-    return min(years) if years else None
-
-
-def _extract_candidate_yoe(resume: SectionedResume) -> int:
-    """
-    Infer total years of experience from date ranges in the resume.
-    Looks for 4-digit years across all experience blocks.
-    """
-    all_years: List[int] = []
-    for block in resume.blocks:
-        years = [int(m) for m in _DATE_RE.findall(block.full_text)]
-        all_years.extend(years)
-
-    if len(all_years) >= 2:
-        return max(all_years) - min(all_years)
-    return 0
-
-
-def _extract_candidate_degree(resume: SectionedResume) -> int:
-    """
-    Find the highest degree level in the candidate's education section.
-    Returns a numeric level (0 = none found, 5 = PhD).
-    """
-    edu_text = resume.section_text(ResumeSection.EDUCATION)
-    # Also check full resume — some resumes don't have a separate education heading
-    full_text = resume.full_text
-
-    highest = 0
-    for text in [edu_text, full_text]:
-        for m in _DEGREE_RE.finditer(text.lower()):
-            degree_str = m.group(1).lower().replace(".", "")
-            level = _DEGREE_LEVELS.get(degree_str, 0)
-            highest = max(highest, level)
-
-    return highest
-
-
-def _extract_required_degree(structured: StructuredJD) -> int:
-    """Find the minimum degree requirement in the JD."""
-    full_text = (structured.required_text + " " + structured.full_jd_text).lower()
-    highest_required = 0
-    for m in _DEGREE_RE.finditer(full_text):
-        degree_str = m.group(1).lower().replace(".", "")
-        level = _DEGREE_LEVELS.get(degree_str, 0)
-        highest_required = max(highest_required, level)
-    return highest_required
-
-
 def evaluate_knockouts(
     resume: SectionedResume,
     structured: StructuredJD,
     config: ATSConfig = DEFAULT_CONFIG,
+    candidate_facts: Optional[CandidateFacts] = None,
+    jd_requirements: Optional[JDRequirements] = None,
 ) -> KnockoutResult:
     """
     Sub-system 2 entry point.
     Evaluates all binary eliminators. Any failure → passes=False.
+
+    candidate_facts and jd_requirements are pre-computed by score_ats()
+    using LLM extraction. If not provided (e.g. direct call in tests),
+    they are computed here using the fallback regex extractors.
     """
+    # Use provided facts or extract via fallback if called directly
+    facts = candidate_facts or extract_candidate_facts(resume)
+    reqs  = jd_requirements  or extract_jd_requirements(structured)
+
     checks: List[dict] = []
     all_pass = True
 
     # ── Check 1: Years of experience ─────────────────────────────────────────
-    min_yoe = _extract_min_yoe_from_jd(structured)
-    candidate_yoe = _extract_candidate_yoe(resume)
-
-    if min_yoe is not None:
-        effective_min = max(0, min_yoe - config.yoe_tolerance_years)
-        passes_yoe = candidate_yoe >= effective_min
+    if reqs.min_yoe is not None:
+        effective_min = max(0, reqs.min_yoe - config.yoe_tolerance_years)
+        passes_yoe = facts.work_experience_years >= effective_min
         all_pass = all_pass and passes_yoe
         checks.append({
             "check": "years_of_experience",
-            "required": min_yoe,
-            "candidate": candidate_yoe,
+            "required": reqs.min_yoe,
+            "candidate": facts.work_experience_years,
             "tolerance": config.yoe_tolerance_years,
             "passes": passes_yoe,
+            "extraction_method": facts.extraction_method,
             "detail": (
-                f"Candidate has ~{candidate_yoe} years, JD requires {min_yoe}+"
+                f"Candidate has ~{facts.work_experience_years} years work experience, "
+                f"JD requires {reqs.min_yoe}+"
                 + (f" (tolerance: ±{config.yoe_tolerance_years}yr)" if config.yoe_tolerance_years else "")
             ),
         })
@@ -713,30 +684,25 @@ def evaluate_knockouts(
         checks.append({
             "check": "years_of_experience",
             "required": None,
-            "candidate": candidate_yoe,
+            "candidate": facts.work_experience_years,
             "passes": True,
+            "extraction_method": reqs.extraction_method,
             "detail": "No minimum YOE specified in JD",
         })
 
     # ── Check 2: Degree requirement ───────────────────────────────────────────
-    required_degree_level = _extract_required_degree(structured)
-    candidate_degree_level = _extract_candidate_degree(resume)
-
-    if required_degree_level > 0:
-        passes_degree = candidate_degree_level >= required_degree_level
+    if reqs.min_degree_level > 0:
+        passes_degree = facts.highest_degree_level >= reqs.min_degree_level
         all_pass = all_pass and passes_degree
-
-        # Map levels back to readable names
-        level_names = {1: "Any Graduate", 2: "Diploma/Associate",
-                       3: "Bachelor's", 4: "Master's", 5: "PhD"}
         checks.append({
             "check": "degree",
-            "required": level_names.get(required_degree_level, str(required_degree_level)),
-            "candidate": level_names.get(candidate_degree_level, "Not detected"),
+            "required": reqs.min_degree_name,
+            "candidate": facts.highest_degree_name or _DEGREE_LEVEL_NAMES.get(facts.highest_degree_level, "Not detected"),
             "passes": passes_degree,
+            "extraction_method": f"jd:{reqs.extraction_method}/resume:{facts.extraction_method}",
             "detail": (
-                f"Required: {level_names.get(required_degree_level)}, "
-                f"Found: {level_names.get(candidate_degree_level, 'not detected')}"
+                f"Required: {reqs.min_degree_name}, "
+                f"Found: {facts.highest_degree_name or 'not detected'}"
             ),
         })
     else:
@@ -744,13 +710,11 @@ def evaluate_knockouts(
             "check": "degree",
             "required": None,
             "passes": True,
+            "extraction_method": reqs.extraction_method,
             "detail": "No specific degree requirement detected in JD",
         })
 
     # ── Check 3: Hard exclusion terms ─────────────────────────────────────────
-    # JDs sometimes contain explicit disqualifiers like "must be authorized to work"
-    # or "no sponsorship available". We flag these but don't auto-fail
-    # (we can't determine authorization from resume text reliably).
     _EXCLUSION_SIGNALS = [
         "must be authorized", "no sponsorship", "us citizen",
         "security clearance required", "must be local",
@@ -759,7 +723,7 @@ def evaluate_knockouts(
     flagged_exclusions = [s for s in _EXCLUSION_SIGNALS if s in full_jd_lower]
     checks.append({
         "check": "manual_review_flags",
-        "passes": True,   # Can't auto-determine — flag for human review
+        "passes": True,
         "flags": flagged_exclusions,
         "detail": (
             f"Requires manual review: {flagged_exclusions}"
@@ -884,11 +848,18 @@ def match_keywords(
     """
     Sub-system 3 entry point.
     Matches all required and preferred JD keywords against the resume.
+
+    When structured.skills is set (LLM skill extraction ran successfully),
+    uses those clean skill names instead of NLP extraction from raw JD text.
+    Falls back to _extract_key_terms (spaCy noun chunks) otherwise.
     """
-    # Extract deduplicated terms from each section
-    # We tokenise the structured JD sections into individual keyword phrases
-    required_terms  = _extract_key_terms(structured.required)
-    preferred_terms = _extract_key_terms(structured.preferred)
+    if structured.skills:
+        required_terms  = [s["name"] for s in structured.skills if s["required"]]
+        preferred_terms = [s["name"] for s in structured.skills if not s["required"]]
+    else:
+        # Extract deduplicated terms from each section via spaCy noun chunks
+        required_terms  = _extract_key_terms(structured.required)
+        preferred_terms = _extract_key_terms(structured.preferred)
 
     required_matched:  List[TermMatchDetail] = []
     required_missing:  List[TermMatchDetail] = []
@@ -950,75 +921,22 @@ def match_keywords(
 #  Returns deduplicated set of terms worth matching.
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Patterns that should be kept as atomic tokens in JD text
-_TERM_PROTECT_RE = re.compile(
-    r"\b[A-Za-z][A-Za-z0-9]*(?:\s+&\s+[A-Za-z][A-Za-z0-9]*)+\b"   # Weights & Biases
-    r"|\b[A-Za-z][A-Za-z0-9]*(?:\.[A-Za-z][A-Za-z0-9]*)+\b"         # Next.js
-    r"|\b[A-Za-z][A-Za-z0-9]*(?:/[A-Za-z][A-Za-z0-9]*)+\b"          # CI/CD
-    r"|\b[A-Z]{1,4}[a-z][A-Za-z0-9]*\b"                              # LangChain, GenAI
-    r"|\b[A-Z][a-z]+[A-Z][A-Za-z0-9]*\b"                             # LlamaIndex
-    r"|\b[A-Z]{2,}(?:\+\+|#)?\b",                                    # NLP, C++
-    re.IGNORECASE,
-)
-
-# Stop words to exclude from term extraction
-_TERM_STOP = {
-    "the", "a", "an", "and", "or", "in", "of", "to", "for", "with",
-    "is", "are", "be", "as", "at", "by", "on", "not", "that", "this",
-    "we", "you", "will", "your", "our", "etc", "e", "g", "such",
-    "including", "using", "via", "through", "across", "within",
-    "experience", "knowledge", "understanding", "familiarity",
-    "ability", "skills", "skill", "working", "strong", "solid",
-    "excellent", "good", "proven", "hands", "hands-on", "years",
-    "year", "plus", "minimum", "required", "preferred",
-}
-
-
 def _extract_key_terms(bullets: List[str]) -> List[str]:
     """
     Extract meaningful keyword terms from a list of JD bullet strings.
-    Returns deduplicated list of terms (tech tokens + meaningful noun phrases).
-    Excludes generic words that aren't matchable skills.
+
+    Delegates to keyword_gap_analyzer.extract_phrases (spaCy noun chunks +
+    protected tech token regex) so both subsystems use identical extraction.
+    This eliminates the n-gram approach which produced garbage like
+    "frameworks like", "related field.", "communication cross-functional".
+
+    Bullets are joined with ". " so spaCy sees sentence boundaries between
+    them and noun chunks cannot span across bullet points.
     """
-    terms: Set[str] = set()
-
-    for bullet in bullets:
-        # 1. Extract protected tech tokens first (preserves CamelCase etc.)
-        for m in _TERM_PROTECT_RE.finditer(bullet):
-            tok = m.group(0).strip()
-            if len(tok) >= 2 and tok.lower() not in _TERM_STOP:
-                terms.add(tok.lower())
-
-        # 2. Extract 1–3 word phrases from remaining text
-        # Replace protected tokens with placeholders to avoid double-counting
-        cleaned = _TERM_PROTECT_RE.sub(" ", bullet)
-        # Split on common delimiters
-        words = re.findall(r"[a-zA-Z][a-zA-Z0-9\-\.]*", cleaned.lower())
-        words = [w for w in words if w not in _TERM_STOP and len(w) >= 3]
-
-        # Single words
-        for w in words:
-            terms.add(w)
-
-        # Bigrams
-        for i in range(len(words) - 1):
-            bigram = f"{words[i]} {words[i+1]}"
-            terms.add(bigram)
-
-        # Trigrams (only if both words are meaningful)
-        for i in range(len(words) - 2):
-            trigram = f"{words[i]} {words[i+1]} {words[i+2]}"
-            terms.add(trigram)
-
-    # Filter: remove terms that are too generic or too short
-    filtered = [
-        t for t in terms
-        if len(t) >= 2
-        and t not in _TERM_STOP
-        and not t.isdigit()
-    ]
-
-    return sorted(set(filtered))
+    if not bullets:
+        return []
+    full_text = ". ".join(b.strip() for b in bullets if b.strip())
+    return sorted(deduplicate_subphrases(extract_phrases(full_text)))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1055,29 +973,14 @@ def aggregate_score(
     Returns 0 for all components if knockouts fail.
     """
     if not knockout_result.passes:
-        # Knockout failed — ATS score is 0 (application eliminated).
-        # Still compute keyword coverage so the UI shows real "already present"
-        # data instead of all-zero analytics.
-        req_total_ko  = len(match_result.required_matched) + len(match_result.required_missing)
-        pref_total_ko = len(match_result.preferred_matched) + len(match_result.preferred_missing)
-        req_score_ko  = (
-            len(match_result.required_matched) / req_total_ko * 100
-            if req_total_ko > 0 else 0.0
-        )
-        pref_score_ko = (
-            len(match_result.preferred_matched) / pref_total_ko * 100
-            if pref_total_ko > 0 else 0.0
-        )
         return ATSScoreComponents(
-            required_score=round(req_score_ko, 1),
-            preferred_score=round(pref_score_ko, 1),
-            placement_score=0.0,
-            recency_score=0.0,
-            ats_score=0.0,  # knockout override — application is eliminated
-            required_matched_count=len(match_result.required_matched),
-            required_total_count=req_total_ko,
-            preferred_matched_count=len(match_result.preferred_matched),
-            preferred_total_count=pref_total_ko,
+            required_score=0.0, preferred_score=0.0,
+            placement_score=0.0, recency_score=0.0,
+            ats_score=0.0,
+            required_matched_count=0,
+            required_total_count=len(match_result.required_matched) + len(match_result.required_missing),
+            preferred_matched_count=0,
+            preferred_total_count=len(match_result.preferred_matched) + len(match_result.preferred_missing),
         )
 
     req_total  = len(match_result.required_matched) + len(match_result.required_missing)
@@ -1375,8 +1278,20 @@ def score_ats(
     # Sub-system 1: Parse resume from AST
     resume = parse_resume_from_ast(block_ast)
 
-    # Sub-system 2: Evaluate knockouts
-    knockout = evaluate_knockouts(resume, structured_jd, config)
+    # LLM extraction — runs before knockout evaluation.
+    # Both calls are independent and can be parallelised if needed.
+    # Results are passed explicitly into evaluate_knockouts so there is
+    # no hidden state and both snapshots in the analytics two-snapshot model
+    # use the same extracted facts (extracted once, reused for before/after).
+    candidate_facts = extract_candidate_facts(resume)
+    jd_requirements = extract_jd_requirements(structured_jd)
+
+    # Sub-system 2: Evaluate knockouts (consumes LLM-extracted facts)
+    knockout = evaluate_knockouts(
+        resume, structured_jd, config,
+        candidate_facts=candidate_facts,
+        jd_requirements=jd_requirements,
+    )
 
     # Sub-system 3: Match keywords
     match_result = match_keywords(resume, structured_jd, config)

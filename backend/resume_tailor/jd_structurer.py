@@ -44,6 +44,9 @@ from tenacity import (
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_groq import ChatGroq
 from langchain_core.messages import HumanMessage, SystemMessage
+from collections import defaultdict
+import asyncio
+from functools import partial
 
 
 logger = get_logger(__name__)
@@ -66,6 +69,10 @@ class StructuredJD:
     raw_text: str                       # original unmodified input
     structuring_method: str             # "llm" | "fallback" | "passthrough"
     structuring_latency_ms: int         # how long structuring took
+    # LLM-extracted skills — set by pipeline.py after skill_extractor runs.
+    # Each entry: {"name": str, "required": bool, "gap": "demonstrated"|"partial"|"missing"}
+    # When set, keyword_gap_analyzer and ats_scorer use these instead of NLP extraction.
+    skills: Optional[List[dict]] = field(default=None)
 
     @property
     def required_text(self) -> str:
@@ -185,7 +192,7 @@ CRITICAL RULES — violating any rule makes your output unusable:
 
 OUTPUT SCHEMA:
 {
-  "title": "string — the job title only (e.g. 'Senior ML Engineer'). Empty string if not found.",
+  "title": "string — the job title or role only (e.g. 'Senior ML Engineer'). Empty string if not found.",
   "responsibilities": ["array of strings — what the person will do, verbatim from JD"],
   "required": ["array of strings — hard requirements, must-have qualifications, verbatim"],
   "preferred": ["array of strings — nice-to-have, bonus, 'is a plus', verbatim"],
@@ -471,7 +478,6 @@ def _fallback_strip_metadata(text: str) -> str:
 
 
 def _fallback_detect_sections(text: str) -> Dict[str, str]:
-    from collections import defaultdict
     sections: Dict[str, str] = defaultdict(str)
     for para in re.split(r"\n{2,}", text):
         pl = para.lower()
@@ -652,8 +658,5 @@ async def structure_jd_async(
     Async wrapper around structure_jd for FastAPI endpoints.
     Runs the sync implementation in a thread pool to avoid blocking the event loop.
     """
-    import asyncio
-    from functools import partial
-
     fn = partial(structure_jd, jd_text, llm_config, force_fallback)
     return await asyncio.get_event_loop().run_in_executor(None, fn)

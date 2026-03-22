@@ -15,6 +15,39 @@ def get_xml_node_as_string(node):
     return ET.tostring(node, encoding="unicode")
 
 
+def _extract_font_size(rpr_xml: str):
+    """Return font size in points from rPr XML, or None if not specified."""
+    if not rpr_xml:
+        return None
+    try:
+        rPr = ET.fromstring(rpr_xml)
+        sz = rPr.find("w:sz", namespaces=NSMAP)
+        if sz is not None:
+            val = sz.get("{http://schemas.openxmlformats.org/wordprocessingml/2006/main}val")
+            if val and val.isdigit():
+                return int(val) // 2  # half-points → points
+    except Exception:
+        pass
+    return None
+
+
+def _extract_underline(rpr_xml: str) -> bool:
+    """Return True if underline is active in rPr XML."""
+    if not rpr_xml:
+        return False
+    try:
+        rPr = ET.fromstring(rpr_xml)
+        u = rPr.find("w:u", namespaces=NSMAP)
+        if u is not None:
+            val = u.get(
+                "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}val", "single"
+            )
+            return val not in ("none", "")
+    except Exception:
+        pass
+    return False
+
+
 def parse_docx_to_block_ast(filepath):
     """
     1. PARSER -> Block AST
@@ -86,6 +119,7 @@ def parse_docx_to_block_ast(filepath):
                 full_text_parts.append(text)
                 runs.append(
                     {
+                        "id": f"b{p_idx}_r{r_idx}",
                         "text": text,
                         "rPrXml": rPrXml,
                         "bold": (
@@ -98,6 +132,8 @@ def parse_docx_to_block_ast(filepath):
                             if rPr is not None
                             else False
                         ),
+                        "underline": _extract_underline(rPrXml),
+                        "fontSize": _extract_font_size(rPrXml),
                     }
                 )
 

@@ -2,9 +2,9 @@ from utils.logger import get_logger
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 
 logger = get_logger(__name__)
-from sqlmodel import Session, select
+from sqlmodel import Session, select, desc
 from database import get_session, create_engine
-from models import Job, UserProfile, JobStatus
+from models import Job, UserProfile, JobStatus, ResumeVersion
 from agent.graph import tailoring_app
 from agent.nodes import update_job_sub_status
 from api.ingest import extract_text_from_docx
@@ -37,13 +37,30 @@ def run_tailoring_task(job_id: int):
         # Log first stage
         update_job_sub_status(job_id, "System 1 — Block AST extracted")
 
+        # Resolve the resume path: use the most recently saved ResumeVersion
+        # that has a valid .docx file. This is more reliable than trusting
+        # profile.resume_path alone, which only reflects the original upload
+        # and is not updated when edits are saved via resume-save-ast/resume-save.
+        latest_version = session.exec(
+            select(ResumeVersion)
+            .where(ResumeVersion.file_path != None)
+            .order_by(desc(ResumeVersion.created_at))
+        ).first()
+
+        if latest_version and latest_version.file_path and os.path.exists(latest_version.file_path):
+            resume_path = latest_version.file_path
+        else:
+            resume_path = profile.resume_path
+
+        logger.info("Tailoring job %d using resume: %s", job_id, resume_path)
+
         # Prepare state while session is open
-        resume_text = extract_text_from_docx(profile.resume_path)
+        resume_text = extract_text_from_docx(resume_path)
         initial_state = {
             "job_id": job.id,
             "job_description": job.job_description,
             "master_resume_text": resume_text,
-            "master_resume_path": profile.resume_path,
+            "master_resume_path": resume_path,
             "skill_whitelist": profile.skill_whitelist or [],
             "extracted_keywords": [],
             "keyword_analysis": {},
@@ -51,7 +68,6 @@ def run_tailoring_task(job_id: int):
             "modifications": {},
             "status": "Starting",
         }
-        resume_path = profile.resume_path
 
     # Session is now closed. Run AI Agent (can take minutes)
     try:
@@ -84,6 +100,7 @@ def run_tailoring_task(job_id: int):
                 )
 
             job.tailored_bullets = ui_bullets
+            job.extracted_keywords = final_state.get("extracted_keywords") or []
 
             # Use deterministic ATS scores from the analytics report.
             # These are based on exact keyword matching, not LLM non-determinism.
@@ -91,7 +108,6 @@ def run_tailoring_task(job_id: int):
             if analytics:
                 job.analytics = analytics
                 score_delta = analytics.get("scoreDelta", {})
-                ats_before = score_delta.get("atsBefore")
                 ats_after = score_delta.get("atsAfter")
                 improvement = score_delta.get("atsImprovement", 0)
                 pass_label = (
@@ -99,8 +115,6 @@ def run_tailoring_task(job_id: int):
                     .get("after", {})
                     .get("label", "")
                 )
-                if ats_before is not None:
-                    job.match_score = round(ats_before)
                 if ats_after is not None:
                     job.tailored_match_score = round(ats_after)
                     job.tailored_match_reason = (

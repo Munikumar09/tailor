@@ -9,6 +9,8 @@ logger = get_logger(__name__)
 from utils.xml_ast import parse_docx_to_block_ast, export_mutated_docx
 from resume_tailor.pipeline import analyze as run_gap_analysis, PipelineConfig
 from resume_tailor.jd_structurer import LLMConfig
+from resume_tailor.ats_scorer import parse_resume_from_ast
+from resume_tailor.types import ResumeSection
 from resume_tailor.resume_analytics import generate_analytics_report
 from ingestion.filter import _call_llm, settings
 from database import Session, engine
@@ -60,8 +62,16 @@ def analyze_gap(state: AgentState):
         ),
         use_semantic=True,
     )
+
+    # Parse AST once here — reused in rewrite_bullets/validate_changes via state.
+    # Also extracts experience section text for accurate YOE inference (FIX-5).
+    ast = parse_docx_to_block_ast(state["master_resume_path"])
+    sectioned = parse_resume_from_ast(ast)
+    experience_text = sectioned.section_text(ResumeSection.EXPERIENCE)
+
     result = run_gap_analysis(
-        state["job_description"], state["master_resume_text"], config
+        state["job_description"], state["master_resume_text"], config,
+        experience_text=experience_text,
     )
 
     # Flatten into a dict compatible with downstream state consumers:
@@ -97,6 +107,7 @@ def analyze_gap(state: AgentState):
         "keyword_analysis": analysis,
         "extracted_keywords": extracted,
         "structured_jd": result.structured_jd,  # consumed by generate_analytics
+        "block_ast": ast,                        # reused by rewrite_bullets / validate_changes
         "status": f"Gap analysis: {round(result.coverage_score)}% coverage",
     }
 
@@ -106,8 +117,8 @@ def rewrite_bullets(state: AgentState) -> dict[str, Any]:
     System 4 — AI Layer (Gemini / LLM).
     Strict prompt contract. Returns tailored bullet suggestions.
 
-    [FIX-1] AST is parsed here and stored in state["block_ast"] so
-            validate_changes can reuse it without a second docx parse.
+    AST is read from state["block_ast"] (set by analyze_gap) to avoid
+    re-parsing the docx. Falls back to a fresh parse if not present.
 
     [FIX-2] LLM errors are classified:
             Retryable (429, 5xx, timeout) → raise RetryableLLMError
@@ -120,8 +131,8 @@ def rewrite_bullets(state: AgentState) -> dict[str, Any]:
     """
     update_job_sub_status(state["job_id"], "System 4 — AI Layer is rewriting blocks...")
 
-    # [FIX-1] Parse AST once here — reuse in validate_changes via state
-    ast = parse_docx_to_block_ast(state["master_resume_path"])
+    # Reuse AST parsed in analyze_gap node; fall back to re-parsing if missing.
+    ast = state.get("block_ast") or parse_docx_to_block_ast(state["master_resume_path"])
     tailorable = [b for b in ast["blocks"] if b.get("isTailorable")]
 
     missing = state["keyword_analysis"]["missing"]
@@ -146,7 +157,12 @@ ABSOLUTE RULES — breaking any rule invalidates your entire response:
 9. Prioritise injecting the provided "missing keywords" list — these have been pre-analysed as gaps.
 10. Keep approximate sentence length. Do not pad or over-explain.
 11. Maximum 8 blocks changed.
-12. "keywordsAdded" must list ONLY new terms not present in the original text."""
+12. "keywordsAdded" must list ONLY new terms not present in the original text.
+13. When injecting a keyword that belongs to a list of similar tools/models/techniques
+    (e.g. the JD says "GPT, Llama, Claude" as examples of LLMs), inject AT MOST ONE
+    representative example per bullet. Never enumerate multiple items from the same
+    category in a single bullet — it reads as keyword stuffing. Additional category
+    members belong in the Skills section, not crammed into a bullet."""
 
     user_prompt = f"""JOB DESCRIPTION:
 {state['job_description']}
@@ -359,7 +375,7 @@ def generate_analytics(state: AgentState) -> dict[str, Any]:
     then produces a full TailoringAnalyticsReport.
 
     Requires in state:
-      - block_ast          → original resume AST (set by rewrite_bullets)
+      - block_ast          → original resume AST (set by analyze_gap)
       - final_resume_path  → tailored .docx (set by generate_doc)
       - structured_jd      → StructuredJD object (set by analyze_gap)
       - tailored_bullets   → validated changes (set by validate_changes)
