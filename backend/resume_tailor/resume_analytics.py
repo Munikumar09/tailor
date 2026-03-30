@@ -1191,6 +1191,7 @@ def generate_analytics_report(
     structured_jd: StructuredJD,
     validated_bullets: List[dict],
     config: ATSConfig = DEFAULT_CONFIG,
+    override_candidate_yoe: Optional[int] = None,
 ) -> TailoringAnalyticsReport:
     """
     Generate the full before/after analytics report.
@@ -1224,8 +1225,8 @@ def generate_analytics_report(
 
     # Run ATS scorer on both resumes
     # This is the two-snapshot model — the only honest way to measure improvement
-    ats_before = score_ats(original_ast, structured_jd, config)
-    ats_after  = score_ats(tailored_ast, structured_jd, config)
+    ats_before = score_ats(original_ast, structured_jd, config, override_candidate_yoe=override_candidate_yoe)
+    ats_after  = score_ats(tailored_ast, structured_jd, config, override_candidate_yoe=override_candidate_yoe)
 
     # Build each layer from the two snapshots + pipeline state
     score_delta     = _build_score_delta(ats_before, ats_after)

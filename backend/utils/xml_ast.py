@@ -90,6 +90,11 @@ def parse_docx_to_block_ast(filepath):
                     )
                 )
 
+        # ── Border helpers (used for heuristic heading detection below) ──
+        _pBdr = pPr.find("w:pBdr", namespaces=NSMAP) if pPr is not None else None
+        _has_border_bottom = _pBdr is not None and _pBdr.find("w:bottom", namespaces=NSMAP) is not None
+        _has_border_left   = _pBdr is not None and _pBdr.find("w:left",   namespaces=NSMAP) is not None
+
         # Classify type
         sl = pStyle.lower()
         block_type = "paragraph"
@@ -101,6 +106,12 @@ def parse_docx_to_block_ast(filepath):
             block_type = "h3"
         elif numPr is not None:
             block_type = "bullet"
+        # ── Heuristics for python-docx built resumes (no OOXML heading styles) ──
+        elif "listbullet" in sl or "list bullet" in sl:
+            block_type = "bullet"
+        elif _has_border_bottom or _has_border_left:
+            # Section headings produced by template builders carry a border
+            block_type = "h2"
 
         runs = []
         full_text_parts = []
@@ -138,6 +149,14 @@ def parse_docx_to_block_ast(filepath):
                 )
 
         full_text = "".join(full_text_parts)
+
+        # h1 heuristic: large-font paragraph (≥14 pt) with no explicit heading pStyle.
+        # Guard: only apply to blocks WITHOUT a real heading pStyle (covers heuristic
+        # h2 set by the border check, e.g. Slate template name with left border).
+        if block_type in ("paragraph", "h2") and not pStyle and runs:
+            max_fs = max((r.get("fontSize") or 0) for r in runs)
+            if max_fs >= 14:
+                block_type = "h1"
 
         if full_text.strip():
             blocks.append(

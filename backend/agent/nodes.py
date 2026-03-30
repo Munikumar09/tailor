@@ -13,9 +13,10 @@ from resume_tailor.ats_scorer import parse_resume_from_ast
 from resume_tailor.types import ResumeSection
 from resume_tailor.resume_analytics import generate_analytics_report
 from ingestion.filter import _call_llm, settings
+from sqlmodel import select as sql_select
 from database import Session, engine
-from models import Job
-from typing import Any
+from models import Job, UserProfile
+from typing import Any, Optional
 from resume_tailor.tailor import (
     _rank_blocks_by_relevance,
     _extract_json_from_llm_output,
@@ -395,11 +396,26 @@ def generate_analytics(state: AgentState) -> dict[str, Any]:
     try:
         tailored_ast = parse_docx_to_block_ast(tailored_path)
 
+        # Read the user-set YOE from their profile — this is the authoritative
+        # source and prevents the LLM/rule-based fallback from including
+        # education years in the YOE count (e.g. 2025 − 2018 = 7).
+        profile_yoe: Optional[int] = None
+        with Session(engine) as db:
+            profile = db.exec(sql_select(UserProfile)).first()
+            if profile and profile.years_of_experience:
+                try:
+                    profile_yoe = int(str(profile.years_of_experience).strip().rstrip("+"))
+                except ValueError:
+                    pass
+        if profile_yoe:
+            logger.info("generate_analytics: using profile YOE override = %d", profile_yoe)
+
         report = generate_analytics_report(
             original_ast=original_ast,
             tailored_ast=tailored_ast,
             structured_jd=structured_jd,
             validated_bullets=state.get("tailored_bullets", []),
+            override_candidate_yoe=profile_yoe,
         )
 
         score_delta = report.score_delta

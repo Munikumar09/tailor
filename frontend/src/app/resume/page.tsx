@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   Upload,
   Save,
@@ -9,7 +10,9 @@ import {
   AlertCircle,
   Loader2,
   Edit,
-  Trash2
+  Trash2,
+  Wand2,
+  Star,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -21,6 +24,7 @@ import {
   useDeleteResumeVersion,
   useResumeAST,
   useSaveResumeAST,
+  useSetCurrentResume,
   ResumeParagraph,
 } from "@/hooks/useProfile";
 
@@ -55,6 +59,7 @@ function getParagraphDefaultStyle(p: ResumeParagraph): React.CSSProperties {
 // ── page ─────────────────────────────────────────────────────────────────────
 
 export default function MasterResumePage() {
+  const router = useRouter();
   const { data: profile, isLoading } = useProfile();
   const { data: resumeContent, isLoading: isLoadingText } = useResumeText();
   const { data: versions = [], isLoading: isLoadingVersions } = useResumeVersions();
@@ -66,6 +71,7 @@ export default function MasterResumePage() {
   const saveVersionMutation = useSaveResumeVersion();
   const saveASTMutation = useSaveResumeAST();
   const deleteVersionMutation = useDeleteResumeVersion();
+  const setCurrentMutation = useSetCurrentResume();
 
   const [editableText, setEditableText] = useState("");
   const [isEditing, setIsEditing] = useState(false);
@@ -144,6 +150,13 @@ export default function MasterResumePage() {
           <p className="text-[11px] text-zinc-500">Base document for all tailored versions</p>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => router.push("/resume/build")}
+            className="px-4 py-1.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-xs font-semibold transition-colors flex items-center gap-2"
+          >
+            <Wand2 size={14} />
+            Build Resume
+          </button>
           <label className="cursor-pointer px-4 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg text-xs font-semibold transition-colors flex items-center gap-2">
             <Upload size={14} />
             Replace File
@@ -293,6 +306,7 @@ export default function MasterResumePage() {
           </div>
 
           {/* ── sidebar ── */}
+
           <div className="space-y-6">
             {/* version history */}
             <div className="bg-[#1A1A1A] border border-zinc-800 rounded-2xl p-5 space-y-4">
@@ -301,9 +315,11 @@ export default function MasterResumePage() {
               </h3>
               <div className="space-y-2">
                 {versions.map((ver) => {
-                  const isActive =
+                  const isSelected =
                     selectedVersionId === ver.id ||
                     (!selectedVersionId && ver.is_current);
+                  const isMaster = ver.is_current;
+
                   return (
                     <div
                       key={ver.id}
@@ -314,46 +330,87 @@ export default function MasterResumePage() {
                         }
                       }}
                       className={cn(
-                        "flex items-center gap-3 p-2.5 rounded-xl hover:bg-zinc-800/50 transition-colors cursor-pointer group",
-                        isActive
+                        "flex flex-col gap-2 p-2.5 rounded-xl transition-colors cursor-pointer group",
+                        isMaster
+                          ? "bg-emerald-500/5 border border-emerald-500/25"
+                          : isSelected
                           ? "bg-indigo-500/5 border border-indigo-500/20"
-                          : "bg-zinc-900/50 border border-zinc-800/50"
+                          : "bg-zinc-900/50 border border-zinc-800/50 hover:bg-zinc-800/50"
                       )}
                     >
-                      <div
-                        className={cn(
-                          "w-8 h-8 rounded-lg border flex items-center justify-center text-[10px] font-black shrink-0",
-                          isActive
-                            ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-400"
-                            : "bg-zinc-800 border-zinc-700 text-zinc-500"
-                        )}
-                      >
-                        {ver.is_current ? "NOW" : "VER"}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-[11px] font-bold text-zinc-300 truncate">
-                          {ver.version_label}
-                        </div>
-                        <div className="text-[9px] text-zinc-500 font-bold uppercase tracking-tighter">
-                          {new Date(ver.created_at).toLocaleDateString()}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={(e) => handleExportVersion(e, ver.id)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-emerald-500/10 hover:text-emerald-500 rounded text-zinc-500"
-                          title="Export as .docx"
+                      <div className="flex items-center gap-3">
+                        {/* Badge */}
+                        <div
+                          className={cn(
+                            "w-8 h-8 rounded-lg border flex items-center justify-center shrink-0",
+                            isMaster
+                              ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                              : isSelected
+                              ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-400"
+                              : "bg-zinc-800 border-zinc-700 text-zinc-500"
+                          )}
                         >
-                          <Download size={12} />
-                        </button>
-                        <button
-                          onClick={(e) => handleDeleteVersion(e, ver.id)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-red-500/10 hover:text-red-500 rounded text-zinc-500"
-                          title="Delete version"
-                        >
-                          <Trash2 size={12} />
-                        </button>
+                          {isMaster ? (
+                            <Star size={13} className="fill-emerald-400 text-emerald-400" />
+                          ) : (
+                            <span className="text-[10px] font-black">VER</span>
+                          )}
+                        </div>
+
+                        {/* Label + date */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[11px] font-bold text-zinc-300 truncate">
+                              {ver.version_label}
+                            </span>
+                            {isMaster && (
+                              <span className="text-[8px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-full shrink-0">
+                                Master
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[9px] text-zinc-500 font-bold uppercase tracking-tighter">
+                            {new Date(ver.created_at).toLocaleDateString()}
+                          </div>
+                        </div>
+
+                        {/* Action icons */}
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={(e) => handleExportVersion(e, ver.id)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-emerald-500/10 hover:text-emerald-500 rounded text-zinc-500"
+                            title="Export as .docx"
+                          >
+                            <Download size={12} />
+                          </button>
+                          <button
+                            onClick={(e) => handleDeleteVersion(e, ver.id)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-red-500/10 hover:text-red-500 rounded text-zinc-500"
+                            title="Delete version"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
                       </div>
+
+                      {/* Set as master — shown when this version is selected and not already master */}
+                      {isSelected && !isMaster && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCurrentMutation.mutate(ver.id);
+                          }}
+                          disabled={setCurrentMutation.isPending}
+                          className="flex items-center justify-center gap-1.5 w-full py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold uppercase tracking-widest transition-colors disabled:opacity-50"
+                        >
+                          {setCurrentMutation.isPending ? (
+                            <Loader2 size={11} className="animate-spin" />
+                          ) : (
+                            <Star size={11} />
+                          )}
+                          Set as Master
+                        </button>
+                      )}
                     </div>
                   );
                 })}
@@ -367,6 +424,8 @@ export default function MasterResumePage() {
           </div>
         </div>
       </div>
+
+
     </div>
   );
 }

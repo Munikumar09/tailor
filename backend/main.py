@@ -12,7 +12,7 @@ from sqlmodel import Session, select
 from database import create_db_and_tables, get_session, engine
 import models
 from models import Job, JobStatus
-from api import jobs, ingest, profile, tailor
+from api import jobs, ingest, profile, tailor, analytics
 from datetime import datetime
 from dotenv import load_dotenv
 from resume_tailor.keyword_gap_analyzer import preload_models as _preload_nlp_models
@@ -91,6 +91,7 @@ app.include_router(jobs.router)
 app.include_router(ingest.router)
 app.include_router(profile.router)
 app.include_router(tailor.router)
+app.include_router(analytics.router)
 
 
 @app.get("/download/{filename:path}")

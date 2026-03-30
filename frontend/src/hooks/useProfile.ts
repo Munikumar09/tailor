@@ -149,6 +149,48 @@ export const useUpdateProfile = () => {
   });
 };
 
+export const useExtractResumeSections = () => {
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      const { data } = await api.post("/profile/resume-extract-sections", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      return data as Record<string, unknown>;
+    },
+  });
+};
+
+export const useBuildResume = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: { form_data: Record<string, unknown>; template: string }) => {
+      const { data } = await api.post("/profile/resume-build", payload);
+      return data as ResumeVersion;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["resume-versions"] });
+    },
+  });
+};
+
+export const useSetCurrentResume = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (versionId: number) => {
+      const { data } = await api.post(`/profile/resume-set-current/${versionId}`);
+      return data as ResumeVersion;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["resume-versions"] });
+      queryClient.invalidateQueries({ queryKey: ["resume-text"] });
+      queryClient.invalidateQueries({ queryKey: ["resume-ast"] });
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+    },
+  });
+};
+
 export const useUploadResume = () => {
   const queryClient = useQueryClient();
 

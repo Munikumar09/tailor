@@ -39,3 +39,4 @@ numpy
 scikit-learn
 rank-bm25
 spacy
+pypdf

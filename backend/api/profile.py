@@ -6,9 +6,20 @@ from models import UserProfile, ResumeVersion
 from utils.doc_processor import extract_text_from_docx, save_text_to_docx
 from utils.xml_ast import parse_docx_to_block_ast, export_mutated_docx
 from utils.keyword_analyzer import tokenize
+from utils.resume_builder import (
+    extract_text_from_pdf,
+    extract_resume_sections_llm,
+    build_resume_docx_classic,
+    build_resume_docx_modern,
+    build_resume_docx_elegant,
+    build_resume_docx_minimal,
+    build_resume_docx_slate,
+    build_resume_docx_executive,
+)
 from utils.logger import get_logger
 import os
 import shutil
+import tempfile
 import time
 from datetime import datetime
 
@@ -228,6 +239,97 @@ def export_resume_version(version_id: int, session: Session = Depends(get_sessio
             filename=filename,
             media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         )
+
+
+@router.post("/resume-extract-sections")
+async def resume_extract_sections(file: UploadFile = File(...)):
+    """Accept a PDF or DOCX, extract text, use LLM to parse into structured sections."""
+    filename = file.filename or ""
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    if ext not in ("pdf", "docx"):
+        raise HTTPException(status_code=400, detail="Only PDF and DOCX files are supported")
+
+    content = await file.read()
+    with tempfile.NamedTemporaryFile(suffix=f".{ext}", delete=False) as tmp:
+        tmp.write(content)
+        tmp_path = tmp.name
+
+    try:
+        if ext == "pdf":
+            text = extract_text_from_pdf(tmp_path)
+        else:
+            text = extract_text_from_docx(tmp_path)
+
+        if not text.strip():
+            raise HTTPException(status_code=422, detail="Could not extract text from file")
+
+        sections = extract_resume_sections_llm(text)
+        return sections
+    finally:
+        os.unlink(tmp_path)
+
+
+@router.post("/resume-build")
+async def build_resume(data: dict, session: Session = Depends(get_session)):
+    """Build a .docx resume from structured form data and a chosen template.
+    Returns the new ResumeVersion (not set as current yet)."""
+    form_data = data.get("form_data", {})
+    template = data.get("template", "classic")
+
+    timestamp = datetime.now().strftime("%b %d, %H:%M")
+    new_filename = f"master_resume_built_{int(time.time())}.docx"
+    output_path = os.path.join(UPLOAD_DIR, new_filename)
+
+    _BUILDERS = {
+        "modern":    build_resume_docx_modern,
+        "elegant":   build_resume_docx_elegant,
+        "minimal":   build_resume_docx_minimal,
+        "slate":     build_resume_docx_slate,
+        "executive": build_resume_docx_executive,
+    }
+    builder = _BUILDERS.get(template, build_resume_docx_classic)
+    builder(form_data, output_path)
+
+    text = extract_text_from_docx(output_path)
+
+    new_v = ResumeVersion(
+        version_label=f"Built ({template.capitalize()}) {timestamp}",
+        content=text,
+        file_path=output_path,
+        is_current=False,
+    )
+    session.add(new_v)
+    session.commit()
+    session.refresh(new_v)
+    return new_v
+
+
+@router.post("/resume-set-current/{version_id}")
+async def set_current_resume(version_id: int, session: Session = Depends(get_session)):
+    """Mark a ResumeVersion as current master resume and sync UserProfile."""
+    old_versions = session.exec(
+        select(ResumeVersion).where(ResumeVersion.is_current == True)
+    ).all()
+    for v in old_versions:
+        v.is_current = False
+        session.add(v)
+
+    version = session.get(ResumeVersion, version_id)
+    if not version:
+        raise HTTPException(status_code=404, detail="Version not found")
+
+    version.is_current = True
+    session.add(version)
+
+    profile = session.exec(select(UserProfile)).first()
+    if profile:
+        profile.resume_path = version.file_path
+        profile.skill_whitelist = list(tokenize(version.content))
+        session.add(profile)
+
+    session.commit()
+    session.refresh(version)
+    return version
 
 
 @router.post("/resume")

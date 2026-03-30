@@ -1251,6 +1251,7 @@ def score_ats(
     block_ast: dict,
     structured_jd: StructuredJD,
     config: ATSConfig = DEFAULT_CONFIG,
+    override_candidate_yoe: Optional[int] = None,
 ) -> ATSResult:
     """
     Full ATS scoring pipeline.
@@ -1284,6 +1285,23 @@ def score_ats(
     # no hidden state and both snapshots in the analytics two-snapshot model
     # use the same extracted facts (extracted once, reused for before/after).
     candidate_facts = extract_candidate_facts(resume)
+
+    # If the user-profile YOE is provided, use it as the authoritative value.
+    # This prevents the LLM fallback (max_year - min_year) from including
+    # education years in the YOE count.
+    if override_candidate_yoe is not None and override_candidate_yoe > 0:
+        candidate_facts = CandidateFacts(
+            work_experience_years=override_candidate_yoe,
+            highest_degree_level=candidate_facts.highest_degree_level,
+            highest_degree_name=candidate_facts.highest_degree_name,
+            current_role_title=candidate_facts.current_role_title,
+            career_gap_months=candidate_facts.career_gap_months,
+            total_companies=candidate_facts.total_companies,
+            extraction_method=candidate_facts.extraction_method + "+profile_override",
+            provenance=candidate_facts.provenance,
+            raw_llm_output=candidate_facts.raw_llm_output,
+        )
+
     jd_requirements = extract_jd_requirements(structured_jd)
 
     # Sub-system 2: Evaluate knockouts (consumes LLM-extracted facts)

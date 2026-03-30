@@ -97,10 +97,32 @@ const LogEntry = ({ entry }: any) => {
   );
 };
 
-function DiffCard({ change, accepted, onToggle, blockType, violationIssues }: any) {
+function DiffCard({ change, accepted, onToggle, onEdit, blockType, violationIssues }: any) {
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editValue, setEditValue] = useState<string>("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isViolation = violationIssues && violationIssues.length > 0;
-  
+  const newText = change.new || change.newText || "";
+
+  const startEdit = () => {
+    setEditValue(newText);
+    setEditing(true);
+    setTimeout(() => textareaRef.current?.focus(), 0);
+  };
+
+  const saveEdit = () => {
+    if (editValue.trim() && editValue !== newText) {
+      onEdit?.(editValue.trim());
+    }
+    setEditing(false);
+  };
+
+  const cancelEdit = () => {
+    setEditing(false);
+    setEditValue(newText);
+  };
+
   return (
     <div className={cn(
       "border rounded-2xl overflow-hidden transition-all duration-200",
@@ -113,15 +135,56 @@ function DiffCard({ change, accepted, onToggle, blockType, violationIssues }: an
           <span className="text-[10px] text-red-400/60 ml-auto">{violationIssues[0]}</span>
         </div>
       )}
-      
+
       <div className="p-5 space-y-4">
         <div className="space-y-2">
           <div className="p-3 bg-red-500/10 border border-red-500/10 rounded-xl">
             <p className="text-[11.5px] font-mono text-red-400 leading-relaxed"><span className="opacity-50 mr-2">−</span>{change.old || change.originalText}</p>
           </div>
-          <div className="p-3 bg-emerald-500/10 border border-emerald-500/10 rounded-xl">
-            <p className="text-[11.5px] font-mono text-emerald-400 leading-relaxed"><span className="opacity-50 mr-2">+</span>{change.new || change.newText}</p>
-          </div>
+
+          {editing ? (
+            <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 space-y-2">
+              <textarea
+                ref={textareaRef}
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) saveEdit();
+                  if (e.key === "Escape") cancelEdit();
+                }}
+                rows={3}
+                className="w-full bg-transparent border-none focus:outline-none text-[11.5px] font-mono text-emerald-300 leading-relaxed resize-none placeholder:text-emerald-700"
+                placeholder="Edit the tailored bullet…"
+              />
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  onClick={cancelEdit}
+                  className="px-3 py-1 rounded-lg text-[10px] font-bold text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveEdit}
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold transition-colors"
+                >
+                  <Save size={11} /> Save
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="group relative p-3 bg-emerald-500/10 border border-emerald-500/10 rounded-xl">
+              <p className="text-[11.5px] font-mono text-emerald-400 leading-relaxed pr-8">
+                <span className="opacity-50 mr-2">+</span>{newText}
+              </p>
+              <button
+                onClick={startEdit}
+                title="Edit this bullet"
+                className="absolute top-2.5 right-2.5 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-emerald-500/20 text-emerald-600 hover:text-emerald-400 transition-all"
+              >
+                <Edit3 size={12} />
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-3">
@@ -132,19 +195,19 @@ function DiffCard({ change, accepted, onToggle, blockType, violationIssues }: an
               </span>
             ))}
           </div>
-          
+
           <div className="flex items-center gap-2 shrink-0">
             <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest bg-zinc-800 px-2 py-1 rounded-md border border-zinc-700">
               {blockType}
             </span>
-            <button 
+            <button
               onClick={() => setOpen(!open)}
               className="p-2 hover:bg-zinc-800 rounded-lg text-zinc-500 transition-colors"
             >
               <Zap size={14} className={open ? "text-amber-400" : ""} />
             </button>
             {!isViolation && (
-              <button 
+              <button
                 onClick={onToggle}
                 className={cn(
                   "px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
@@ -762,11 +825,18 @@ function TailoringPipelineView({ jobId }: { jobId: string }) {
 
                 <div className="space-y-4">
                   {editableBullets.map((bullet, idx) => (
-                    <DiffCard 
+                    <DiffCard
                       key={idx}
                       change={bullet}
                       accepted={accepted[idx]}
                       onToggle={() => setAccepted(p => ({ ...p, [idx]: !p[idx] }))}
+                      onEdit={(newText: string) =>
+                        setEditableBullets(prev => {
+                          const next = [...prev];
+                          next[idx] = { ...next[idx], new: newText, newText };
+                          return next;
+                        })
+                      }
                       blockType="Bullet Point"
                     />
                   ))}
